@@ -1,0 +1,13 @@
+.vscode/
+.DS_Store
+__pycache__/
+*-checkpoint.ipynb
+.venv
+*.egg*
+build/*
+_C.*
+outputs/*
+checkpoints/*.pt
+checkpoints_detection/
+demo/backend/checkpoints/*.pt
+notebooks_SAM2-MICE/

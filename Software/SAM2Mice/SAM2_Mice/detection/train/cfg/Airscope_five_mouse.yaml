@@ -1,0 +1,10 @@
+train: /mnt/nas01/LAR/pico/Analysis/tracking/detection/splited/PICO_five_mouse_data_merged_splited/images/train   # train images (relative to 'path') 128 images
+val: /mnt/nas01/LAR/pico/Analysis/tracking/detection/splited/PICO_five_mouse_data_merged_splited/images/val # val images (relative to 'path') 128 images
+test: # test images (optional)
+
+nc: 1
+
+# Classes
+names:
+  0: mouse
+  
