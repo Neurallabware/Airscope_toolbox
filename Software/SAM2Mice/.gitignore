@@ -10,4 +10,4 @@ outputs/*
 checkpoints/*.pt
 checkpoints_detection/
 demo/backend/checkpoints/*.pt
-notebooks_SAM2-MICE/
+
