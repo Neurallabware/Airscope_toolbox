@@ -1,0 +1,6 @@
+"Comment","Description","Designator","Footprint","LibRef","Pins","Quantity","PartNumber","url",
+"DF40C-20DP-0.4V_51_","desc","J1,","HRS_DF40C-20DP-0.4V_51_","libref","24","1","","",
+"SM06B-SURS-TF(LF)(SN)","desc","J2,","JST_SM06B-SURS-TF(LF)(SN)","libref","8","1","","",
+"1u","desc","C1,","C_0402_Metric","libref","2","1","","",
+"DF40HC3.5-20DS-0.4V51","desc","J3,","CONN20_DF40HC_HIR","libref","20","1","","",
+"Pad1","desc","U1,U2,U3,U4,","Rec_Pad_1","libref","1","4","","",
