@@ -1,6 +1,5 @@
 # 🔬 Airscope   
 
-# Airscope 🔬
 
 ### A *1-gram wireless mesoscope* for brain-wide, single-cell resolution imaging with truly unrestricted behavior
 
@@ -49,25 +48,25 @@
 - [**⚙️ Firmware**](./Firmware)  
    Embedded control code in **C++** for wireless data transmission and device management
 
-- [**🛠️ Hardware**](./hardware)  
+- [**🛠️ Hardware**](./Hardware)  
 
   | Component       | Description                         |
   |-----------------|-------------------------------------|
-  | [Auxiliary](./hardware/Auxiliary)       | Additional supporting components    |
-  | [Extension PCB](./hardware/Extension%20PCB)   | Optional expansion board             |
-  | [LED FPC](./hardware/LED%20FPC)         | Flexible PCB for LED control         |
-  | [Main PCB](./hardware/Main%20PCB)        | Core circuit board                   |
-  | [Power FPC](./hardware/Power%20FPC)      | Flexible PCB for power delivery      |
+  | [Auxiliary](./Hardware/Auxiliary)       | Additional supporting components    |
+  | [Extension PCB](./Hardware/Extension%20PCB)   | Optional expansion board             |
+  | [LED FPC](./Hardware/LED%20FPC)         | Flexible PCB for LED control         |
+  | [Main PCB](./Hardware/Main%20PCB)        | Core circuit board                   |
+  | [Power FPC](./Hardware/Power%20FPC)      | Flexible PCB for power delivery      |
 
 
-- [**💻 Software**](./software)  
+- [**💻 Software**](./Software)  
   
   Includes the following submodules:  
 
   | Component       | Description                         |
   |-----------------|-------------------------------------|
-  | [Neuron_BERT](./software/Neuron_BERT) | Classification network to determine winners and losers in tube tests |
-  | [SAM2Mice](./software/SAM2Mice)      | Zero-shot behavior segmentation in freely moving mice |
+  | [Neuron_BERT](./Software/Neuron_BERT) | Classification network to determine winners and losers in tube tests |
+  | [SAM2Mice](./Software/SAM2Mice)      | Zero-shot behavior segmentation in freely moving mice |
 
 
 ## 🙏 Credits & Usage
