@@ -3,6 +3,21 @@
 
 ### A *1-gram wireless mesoscope* for brain-wide, single-cell resolution imaging with truly unrestricted behavior
 
+---
+
+## 📢 Code Availability (IMPORTANT)
+
+The code is hosted on GitHub at:  
+**https://github.com/Neurallabware/Airscope_toolbox**  
+The repository is currently **private** but will be made **publicly accessible upon publication**.
+
+In the meantime, the full codebase can be accessed through Google Drive:  
+**https://drive.google.com/drive/folders/1PhjPooL4QZGT8XVAjhhabJj6SmX-H24e**
+
+---
+
+
+
 <p align="justify">
 
 **Abstract:** Revealing how distributed cortical circuits coordinate behavior in freely moving animals remains a central challenge in systems neuroscience, constrained by limited fields of view, low throughput, and the tethering required by current miniaturized microscopes. We present **Airscope**, a wireless mesoscope delivering 4 µm lateral resolution across a 6 mm field of view at 10 Hz, weighing 1 gram. Integrating aspheric optics and a tailored wireless system, Airscope can record over 8,000 neurons per animal during freely behaving sessions, a 20-fold gain. Airscope enables previously inaccessible multi-animal imaging in room-scale enriched arenas, swimming assays, and multi-organ implantation. Initial investigations reveal dorsal cortex representations of social hierarchy supporting reliable decoding of competition outcomes, a reward discovery state during maze exploration, and spinal-to-cortex causal flow during fear conditioning.
