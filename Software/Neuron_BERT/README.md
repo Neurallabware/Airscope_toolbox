@@ -1,4 +1,4 @@
-# 🧠 Neuron-BERT predictor
+# Neuron-BERT predictor
 
 We proposed a deep learning framework for analyzing calcium imaging data from dual-mouse behavioral experiments using two-stream neural architectures.  Neural recordings were tokenized in time, treating each time point as a token. The sequence from each animal, without rank labels, was passed to a dedicated transformer encoder to produce an embedded representation of that animal’s activity.This repository implements multiple model architectures including Uni-stream BERT and Dual-stream-BERT predicting the tubetest outcome (win/lose) from neural calcium signals.
 
@@ -6,50 +6,37 @@ We proposed a deep learning framework for analyzing calcium imaging data from du
 ![tube test](assets/tube-test.png)
 
 
-## 🏗️ Model Architectures
+## Model Architectures
 
 
-Calcium imaging sequences are high‑dimensional, noisy, and socially contextual. Classical models (SVM / shallow MLP) ignore structured temporal dependencies and inter‑animal coupling. A BERT‑style encoder can be like:
-
-| Challenge | Solution (This Repo) |
-|-----------|----------------------|
-| Irregular neural co‑activation | Multi‑head self‑attention over time |
-| Social interaction dependency | Dual encoders + cross‑attention |
-| Limited labeled trials | Augmentations + masking style robustness |
-| Variable trial lengths | Cropping / padding + sequence masking |
+Calcium imaging sequences are high‑dimensional and socially contextual. Classical models (SVM / shallow MLP) ignore structured temporal dependencies and inter‑animal coupling. We proposed two architectures as below:
 
 ---
-
-
-### 1. Dual‑Stream BERT
-![Two-Stream Architecture](assets/two_stream.png)
-Two independent temporal Transformer encoders (one per mouse) followed by a fusion head.
-
-Fusion options:
-- `concat` (default): feature concatenation + MLP.
-- `add`: element‑wise combination (parameter‑efficient).
-- `cross_attention`: symmetrical cross‑attention module learns directed inter‑mouse influence before fusion.
-
-### 2. Neuron‑BERT (Single Stream)
+### 1. Neuron‑BERT (Single Stream)
 ![BERT Architecture](assets/bert.png)
 Adapts a BERT encoder to neural calcium sequences with:
 - Learned positional embeddings
-- LayerNorm + GELU feed‑forward blocks
+- Bert-liks segment embeddings to separete the two mice
 - CLS token–style representation aggregation (classification head on first token)
+
+### 2. Dual‑Stream BERT
+![Two-Stream Architecture](assets/two_stream.png)
+Two independent temporal Transformer encoders (one per mouse) followed by a fusion head.
+
 
 ---
 
-## 📦 Data Format
+## Data Format
 
 Each experiment file (e.g. `data_aligned.pkl`) is a pickled Python dict:
 
 ```python
 {
   'trial_folder_name (mouseA_mouseB)': {
-      'start_frame': int,
-      'end_frame': int,
+      'start_frame': int, 
+      'end_frame': int,  # start and end frame of current trial 
       'neuron_center_{mouse_id}': np.ndarray,          # (num_neurons, 2) or similar
-      'neuron_name_{mouse_id}': np.ndarray | list,     # optional metadata
+      'neuron_name_{mouse_id}': np.ndarray | list,     # cortical id of each neurons
       'calcium_whole_{mouse_id}': np.ndarray,          # (num_neurons, total_time)
       'trial_{k}': {
           'winner': str,                               # e.g. 'mouseA'
@@ -59,16 +46,20 @@ Each experiment file (e.g. `data_aligned.pkl`) is a pickled Python dict:
   },
   ...
 }
+
 ```
 
-### Preprocessing Assumptions
+### Preprocessing
 - Trials are already **aligned** across the two animals.
-- PCA dimensionality reduction happens inside dataset classes when caching (see `datasets/`).
+- PCA dimensionality reduction happens inside dataset classes to the fixed dimension `--input_dim`. To reduce processing time, the processed files are saved in the cache dir (see `cache/`) to be loaded.
 - Variable length trials are cropped / padded to a fixed `--seq_length` with a corresponding mask.
+
+The dataset class in [dataset.py](datasets\dataset.py) accept a `list[dict]` of the pkl file as input.
+For the overview of the dataset, please refer to this [notebook](datasets/data_set_vis.ipynb).
 
 ---
 
-## 🔧 Installation
+## Installation
 
 Minimal setup (adjust torch version for CUDA):
 
@@ -80,22 +71,24 @@ pip install scikit-learn numpy matplotlib seaborn pandas tqdm jupyter
 ---
 
 
-## ▶️ Quick Start (Defaults)
+## Quick Start (Defaults)
 
 Single‑stream:
 ```bash
-python train_BERT.py --data_dir <path_to_pickled_data>
+python train_BERT.py --data_dir <dir_to_pickled_data>
 ```
 
 Dual‑stream:
 
 ```bash
-python train_dual_stream_BERT.py --data_dir <path> --fusion_strategy cross_attention --depth 4 --embed_dim 256
+python train_dual_stream_BERT.py --data_dir <dir_to_pickled_data>  --depth 4 --embed_dim 256
 ```
+
+Example log file of Dual-stream BERT can be seen at [log.txt](runs\two_stream_transformer_tube_test\trial_level_emb256_d4_mlp4_drop30_lr0.001_20251112-154352\log.txt). You can view the validation [here](validate_dual_stream.ipynb).
 
 ---
 
-⚙️ Key CLI Arguments
+### Key CLI Arguments
 
 | Category | Argument | Purpose | Common Values |
 |----------|---------|---------|---------------|
@@ -116,7 +109,7 @@ Run `python train_dual_stream_BERT.py -h` or `python train_BERT.py -h` for the f
 
 ---
 
-🧪 Data Augmentation Toolkit
+### Data Augmentation Toolkit
 
 Implemented inside dataset classes (`dataset_augment.py`). You can toggle intensity via probabilities:
 
@@ -131,7 +124,7 @@ All augmentations automatically disabled for validation and test splits.
 
 ---
 
-## 📊 Results (Five‑Fold Cross Validation)
+## Results (Five‑Fold Cross Validation)
 
 Performance across nine animal pairs (19 held‑out trials per fold):
 
@@ -144,7 +137,7 @@ Performance across nine animal pairs (19 held‑out trials per fold):
 
 ---
 
-## 📚 Citation
+## Citation
 
 If this repository aids your research, please cite:
 
@@ -159,7 +152,7 @@ If this repository aids your research, please cite:
 
 ---
 
-## 📄 License
+## License
 MIT License (see `LICENSE`).
 
 ---

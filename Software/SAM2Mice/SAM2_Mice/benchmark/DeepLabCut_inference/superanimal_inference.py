@@ -1,6 +1,6 @@
 import deeplabcut
 
-video_path = r"Y:\LAR\pico\Analysis\tracking\segmentation\benchmark\openfield_three_mice\openfield_three_mouse.mp4"
+video_path = "/mnt/nas01/LAR/pico/Analysis/tracking/segmentation/benchmark/openfield_three_mice/openfield_three_mouse.mp4"
 
 superanimal_name = "superanimal_topviewmouse"
 

@@ -11,9 +11,7 @@ from engine import train_model
 from datasets import CalciumDataset_one_stream_pair_pca
 from model import Neuron_BERT
 from datasets import (
-    split_data_mouse_level,
     split_data_trial_level,
-    split_data_file_level,
     analyze_split_distribution,
 )
 
@@ -82,27 +80,9 @@ def main():
     print(f"Loaded {len(data_dict_list)} data files from {args.data_dir}")
 
     # Split
-    if args.split_strategy == "mouse_level":
-        print("\n=== Using Mouse Level Split ===")
-        train_data_list, val_data_list, test_data_list = split_data_mouse_level(
-            data_dict_list,
-            train_ratio=args.train_ratio,
-            val_ratio=args.val_ratio,
-            test_ratio=args.test_ratio,
-            random_seed=args.seed,
-        )
-    elif args.split_strategy == "trial_level":
+    if args.split_strategy == "trial_level":
         print("\n=== Using Trial Level Split ===")
         train_data_list, val_data_list, test_data_list = split_data_trial_level(
-            data_dict_list,
-            train_ratio=args.train_ratio,
-            val_ratio=args.val_ratio,
-            test_ratio=args.test_ratio,
-            random_seed=args.seed,
-        )
-    elif args.split_strategy == "file_level":
-        print("\n=== Using File Level Split ===")
-        train_data_list, val_data_list, test_data_list = split_data_file_level(
             data_dict_list,
             train_ratio=args.train_ratio,
             val_ratio=args.val_ratio,

@@ -97,7 +97,7 @@ def split_data_mouse_level(data_dict_list, train_ratio=0.8, val_ratio=0.1, test_
 
     n_total = len(mouse_pair_file_combinations)
     n_train = int(n_total * train_ratio)
-    n_val = int(n_total * val_ratio)
+    n_val = int(round(n_total * val_ratio))
     n_test = n_total - n_train - n_val
 
     train_combinations = set(mouse_pair_file_combinations[:n_train])
@@ -193,7 +193,7 @@ def split_data_trial_level(data_dict_list, train_ratio=0.8, val_ratio=0.1, test_
 
     n_total = len(all_trials)
     n_train = int(n_total * train_ratio)
-    n_val = int(n_total * val_ratio)
+    n_val = int(round(n_total * val_ratio))
     n_test = n_total - n_train - n_val
 
     train_trials = all_trials[:n_train]

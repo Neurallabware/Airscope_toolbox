@@ -118,18 +118,18 @@ def auto_tracking_with_sam2(
         torch.backends.cuda.matmul.allow_tf32 = True
         torch.backends.cudnn.allow_tf32 = True
     
-    if video_path:
-        if not frames_dir:
-            frames_dir = os.path.join(os.path.dirname(video_path),
-                                            f"{os.path.splitext(os.path.basename(video_path))[0]}_frames")
-            if not os.path.exists(frames_dir):
-                    raise ValueError("Please make sure frames have been extracted into the default folder!")
-        cap = cv2.VideoCapture(video_path)
-        if len([file for file in os.listdir(frames_dir) if file.endswith(".jpg")]) != int(cap.get(cv2.CAP_PROP_FRAME_COUNT)):
-                raise ValueError("Please make sure extracted frame number is the same as video !")
-        cap.release()
-    elif not os.path.exists(frames_dir):
-            raise ValueError("Please make sure the video frame folder exists!")
+    # if video_path:
+    #     if not frames_dir:
+    #         frames_dir = os.path.join(os.path.dirname(video_path),
+    #                                         f"{os.path.splitext(os.path.basename(video_path))[0]}_frames")
+    #         if not os.path.exists(frames_dir):
+    #                 raise ValueError("Please make sure frames have been extracted into the default folder!")
+    #     cap = cv2.VideoCapture(video_path)
+    #     if len([file for file in os.listdir(frames_dir) if file.endswith(".jpg")]) != int(cap.get(cv2.CAP_PROP_FRAME_COUNT)):
+    #             raise ValueError("Please make sure extracted frame number is the same as video !")
+    #     cap.release()
+    # elif not os.path.exists(frames_dir):
+    #         raise ValueError("Please make sure the video frame folder exists!")
 
     if not output_dir:
         output_dir = os.path.join(os.path.dirname(video_path), "segmentation_results")

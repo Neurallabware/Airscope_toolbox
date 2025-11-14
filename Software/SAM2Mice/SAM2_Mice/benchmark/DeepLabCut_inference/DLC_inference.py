@@ -3,7 +3,7 @@ import deeplabcut
 from pathlib import Path
 
 
-ProjectFolderName = "D:/Users/86177/DeepLabCut_Mice/PICO_three_mice-yuanlong-2024-06-26/" # note this has to be a full path
+ProjectFolderName = "/mnt/nas00/LAR/dataset/dlc_model_and_data/PICO_five_mice-yuanlong-2024-06-26" # note this has to be a full path
 VideoType = 'mp4' #, mp4, MOV, or avi, whatever you uploaded!
 
 videofile_path = [ProjectFolderName+"/videoss/"] #Enter the list of videos or folder to analyze.

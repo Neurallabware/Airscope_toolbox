@@ -26,7 +26,7 @@ class CommonUtils:
     @staticmethod
     def draw_masks_and_box_with_supervision(raw_image_path, mask_path, json_path, output_path):
         CommonUtils.creat_dirs(output_path)
-        raw_image_name_list = os.listdir(raw_image_path)
+        raw_image_name_list = [tmp for tmp in os.listdir(raw_image_path) if tmp.endswith(".jpg") or tmp.endswith(".png")]
         raw_image_name_list.sort()
         for raw_image_name in raw_image_name_list:
             image_path = os.path.join(raw_image_path, raw_image_name)
@@ -113,7 +113,7 @@ class CommonUtils:
     @staticmethod
     def draw_masks_and_box(raw_image_path, mask_path, json_path, output_path):
         CommonUtils.creat_dirs(output_path)
-        raw_image_name_list = os.listdir(raw_image_path)
+        raw_image_name_list = [tmp for tmp in os.listdir(raw_image_path) if tmp.endswith(".jpg") or tmp.endswith(".png")]
         raw_image_name_list.sort()
         for raw_image_name in raw_image_name_list:
             image_path = os.path.join(raw_image_path, raw_image_name)

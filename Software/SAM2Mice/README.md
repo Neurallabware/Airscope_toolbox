@@ -21,39 +21,44 @@
 
 ## Installation
 
-Download the pretrained `SAM2Mice` checkpoints:
+Download the pretrained `SAM2Mice` checkpoints using gdown:
 
 ```bash
 cd checkpoints
+pip install gdown
+bash download_ckpts.sh
+```
+or you could download directly from [google drive](https://drive.google.com/file/d/1ixrVMJ512o_Zm4C6GXqqs40AErYCH0_6/view?usp=drive_link).
+
+Download the pretrained `YOLO v11` checkpoints, note that this ckpt only support top-down view in openfiled:
+
+```bash
+cd checkpoints_detection
 bash download_ckpts.sh
 ```
 
-Download the pretrained `YOLO v11` checkpoints:
+Install PyTorch environment first. We use `python=3.11`, as well as `torch >= 2.6.0`, `torchvision>=0.21.0` and `cuda-12.4` in our environment to run this demo. Please follow the instructions [here](https://pytorch.org/get-started/locally/) to install both PyTorch and TorchVision dependencies. Installing both PyTorch and TorchVision with CUDA support is strongly recommended. You can easily install the latest version of PyTorch as follows:
 
 ```bash
-cd gdino_checkpoints
-bash download_ckpts.sh
-```
-
-Install PyTorch environment first. We use `python=3.10`, as well as `torch >= 2.3.1`, `torchvision>=0.18.1` and `cuda-12.1` in our environment to run this demo. Please follow the instructions [here](https://pytorch.org/get-started/locally/) to install both PyTorch and TorchVision dependencies. Installing both PyTorch and TorchVision with CUDA support is strongly recommended. You can easily install the latest version of PyTorch as follows:
-
-```bash
-pip3 install torch torchvision torchaudio
+pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu124
 ```
 
 Install `Segment Anything 2`:
 
 ```bash
 pip install -e .
+python setup.py build_ext --inplace
 ```
 
-Install `ultralytics`, `supervision`, `labelme` and `labelimg`:
+Install `ultralytics`, `supervision`, `labelme`, `labelimg` and `scikit-learn`:
 
 ```bash
-pip install ultralytics supervision labelme labelImg
+pip install ultralytics supervision labelme labelImg scikit-learn
 ```
 
 ## Training
+
+The dataset used in SAM2Mice is currently not publicly available. It will be open-sourced after the paper is accepted and published.
 
 ### Data annotation pipeline
 
@@ -88,8 +93,8 @@ We use [**Labelme**](https://github.com/wkentaro/labelme) for mouse mask annotat
 We then convert the raw Labelme annotations into the [**MOSE**](https://github.com/henghuiding/MOSE-api) dataset format using the provided script:
 
 ```bash
-cd training/dataset_prepare
-python labelme_to_training_format.py
+cd training/dataset_pre
+python labelme_to_training_format.py --json_dir <data_dir> --output_dir <output_dir>
 ```
 This will generate the following directory structure:
 
@@ -130,8 +135,32 @@ Examples of our dataset is like:
 
 We follow the original training script as SAM2, Please check the training [README](training/README.md) on how to get started.
 
+### Data used to train YOLO v11
+
+We convert the mask of SAM2Mice to bounding box to train a yolo detector for initial prompt generation, the bounding box data for YOLO could be downloaded from [google drive](https://drive.google.com/drive/folders/1aLM1k9hvZOTvQtgVzJ2K1oiGWzQ9MZNx?dmr=1&ec=wgc-drive-globalnav-goto).
+
+
+You could run this to convert mask data from SAM2Mice to yolo format training data.
+```bash
+python SAM2_Mice/detection/train/mask_to_boxs.py \
+    --video /path/to/video.mp4 \
+    --pickle /path/to/processed_segments.pkl.gz \
+    --images-out ./dataset/images \
+    --labels-out ./dataset/labels \
+    --mode random \
+    --num-frames 200 \
+    --class-mode single \
+    --seed 42
+```
+
+Then you can train yolo from this script after modify the data path of [cfg](SAM2_Mice/detection/train/cfg/Airscope_five_mouse.yaml):
+```bash
+python SAM2_Mice/detection/train/train_detection.py
+```
 
 ## SAM2Mice Demos
+
+The data used in the demo could be downloaded from [google drive](https://drive.google.com/drive/folders/1HpAkDMQnqlLCBhCsW34AawSx-Fubtk57?dmr=1&ec=wgc-drive-globalnav-goto).
 
 ### Bootstrapping video predictor
 
@@ -165,7 +194,7 @@ from SAM2_Mice.segmentation import VideoSegmentationInference, BootstrappingVide
 
 # Configuration
 model_cfg = "configs/sam2.1/sam2.1_hiera_b+.yaml"
-checkpoint_path = "./checkpoints/sam2_base_five_mouse_finetuned.pt"
+checkpoint_path = "checkpoints/SAM2_Mice_base_plus.pt"
 VIDEO_PATH = "your_video_path"
 FRAME_DIR = "your_frame_save_dir"
 
@@ -188,7 +217,7 @@ SAM2_mice_boots_predictor.extract_bootstrapping_frames(video_path=VIDEO_PATH, ba
 Both **base** and **bootstrapping** modes support two prompt types:
 
 - **Manual prompts**:  
-  - Use [Labelme](https://github.com/wkentaro/labelme) to annotate the **any** frame you want.  
+  - Use [Labelme](https://github.com/wkentaro/labelme) to annotate the **any** frame you want. Pleas refer to [example.mp4](assets/labelme_usage_example.mp4) to see how to use labelme to give prompts in the directory frames extracted.
   - Example of a polygon prompt (`00000.json`):  
     ```json
     {
@@ -262,20 +291,20 @@ auto_tracking_with_sam2(
     video_path="data/test_video.mp4",
     frames_dir="data/frames",
     output_dir="results/tracking",
-    sam2_checkpoint="checkpoints/sam2_base_finetuned.pt",
+    sam2_checkpoint="checkpoints/SAM2_Mice_base_plus.pt",
     model_cfg="configs/sam2.1/sam2.1_hiera_b+.yaml",
     detection_ckpt_path="checkpoints/yolov11.pt",
-    prompt_type="box",                         # initial prompt type
+    prompt_type="mask",                         # initial prompt type
     frame_step=1,                              # step size between frames
     frame_rate=20,                             # output fps
     detection_conf=0.5,                        # YOLOv11 confidence threshold
-    iou_threshold=0.6,                         # for ID matching
+    iou_threshold=0.3,                         # for ID matching
     extract_frames=True,
     object_label="mouse",
 )
 ```
-Please refer to the examples in [auto_tracking_predictor_example.ipynb](./notebooks/video_predictor_example.ipynb) for details.
 
+Please refer to the examples in [sam2_video_predictor_tracking.ipynb](notebooks_SAM2-MICE/sam2_video_predictor_tracking.ipynb) for details.
 
 ## Tracking metrics evaluation 
 This repo uses py-motmetrics to compute standard MOT metrics (MOTA, MOTP, IDF1, ID switches, FP, FN, etc.) from either:
@@ -285,6 +314,7 @@ This repo uses py-motmetrics to compute standard MOT metrics (MOTA, MOTP, IDF1, 
   class_id cx cy w h [optional_conf]
   plus a classes.txt. Boxes are normalized [0–1] and will be converted to pixels using the provided image width/height.
 
+Please refer to [README.md](SAM2_Mice/benchmark/README.md) to download the evaluation data and see details in [bench_mark.ipynb](SAM2_Mice/benchmark/bench_mark.ipynb).
 
 If you have packed binary masks per frame (processed_segments), convert them into YOLO boxes:
 

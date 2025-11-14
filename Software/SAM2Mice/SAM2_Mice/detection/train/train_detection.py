@@ -1,16 +1,22 @@
+import os
+# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 from ultralytics import YOLO
 
+# python SAM2_Mice/detection/train/train_detection.py
+
 model = YOLO(model='SAM2_Mice/detection/train/cfg/yolo11.yaml')
-model.load("/home/gpu_0/BBNC/PICO_code/yolo_v11/weights/yolo11l.pt")
+model.load("yolo11l.pt")
 
 train_results = model.train(
-    data="SAM2_Mice/detection/train/cfg/Airscope_five_mouse.yaml",  # 数据集配置文件路径
-    epochs=100,  # 训练周期数
-    imgsz=2048,  # 训练图像尺寸
-    device="cuda:0",  # 运行设备（例如 'cpu', 0, [0,1,2,3]）
-    amp=False,
-    batch=8, 
+    data="SAM2_Mice/detection/train/cfg/Airscope_five_mouse.yaml",  
+    epochs=100, 
+    imgsz=1024,  
+    device="1",  
+    amp=True,
+    batch=128, 
     workers=64,
+    project="SAM2_Mice/detection/train/exp",  
+    name="yolo11_five_mouse_exp1",               
 )
 
 metrics = model.val()

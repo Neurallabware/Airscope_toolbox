@@ -8,6 +8,6 @@ build/*
 _C.*
 outputs/*
 checkpoints/*.pt
-checkpoints_detection/
+checkpoints_detection/*.pt
 demo/backend/checkpoints/*.pt
-
+SAM2_Mice/detection/train

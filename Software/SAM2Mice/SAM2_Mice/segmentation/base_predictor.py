@@ -98,10 +98,8 @@ class VideoSegmentationInference:
             frames_dir = os.path.join(os.path.dirname(video_path),
                                       f"{os.path.splitext(os.path.basename(video_path))[0]}")
             VideoFrameExtractor.extract_frames(video_path, frames_dir)
-
-        if not frames_dir or not os.path.exists(frames_dir):
-            raise ValueError("Either video_path or a valid frames_dir must be provided")
-
+        elif video_path and frames_dir:
+            VideoFrameExtractor.extract_frames(video_path, frames_dir)
 
     def run(self, video_path=None, frames_dir=None, prompt_source="detection", 
             detection_ckpt_path="", prompt_type="points", save_dir=None, fps=10):

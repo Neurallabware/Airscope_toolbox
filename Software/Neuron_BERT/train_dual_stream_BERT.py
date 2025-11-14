@@ -11,9 +11,7 @@ from engine import train_model_two_stream
 from datasets import CalciumDataset_two_stream_pair_pca
 from model import DualStreamBERT
 from datasets import (
-    split_data_mouse_level,
     split_data_trial_level,
-    split_data_file_level,
     analyze_split_distribution,
 )
 
@@ -41,7 +39,7 @@ def build_arg_parser():
     parser.add_argument("--depth", type=int, default=4, help="Number of Transformer layers")
     parser.add_argument("--num_heads", type=int, default=4, help="Number of attention heads")
     parser.add_argument("--mlp_ratio", type=float, default=4.0, help="MLP expansion ratio in Transformer")
-    parser.add_argument("--drop_ratio", type=float, default=0.2, help="Dropout ratio")
+    parser.add_argument("--drop_ratio", type=float, default=0.3, help="Dropout ratio")
     parser.add_argument("--fusion_strategy", type=str, default="concat",
                         choices=["concat", "add", "cross_attention"], help="Fusion strategy for the two streams")
     parser.add_argument("--num_classes", type=int, default=2, help="Number of output classes")
@@ -76,7 +74,7 @@ def main():
 
     # Collect data files
     data_paths = [os.path.join(args.data_dir, f) for f in os.listdir(args.data_dir)
-                  if os.path.isfile(os.path.join(args.data_dir, f))]
+                  if os.path.isfile(os.path.join(args.data_dir, f)) and f.endswith(".pkl")]
     if len(data_paths) == 0:
         raise FileNotFoundError(f"No data files found in directory: {args.data_dir}")
 
@@ -88,27 +86,9 @@ def main():
     print(f"Loaded {len(data_dict_list)} data files from {args.data_dir}")
 
     # Split data
-    if args.split_strategy == "mouse_level":
-        print("\n=== Using Mouse Level Split ===")
-        train_data_list, val_data_list, test_data_list = split_data_mouse_level(
-            data_dict_list,
-            train_ratio=args.train_ratio,
-            val_ratio=args.val_ratio,
-            test_ratio=args.test_ratio,
-            random_seed=args.seed,
-        )
-    elif args.split_strategy == "trial_level":
+    if args.split_strategy == "trial_level":
         print("\n=== Using Trial Level Split ===")
         train_data_list, val_data_list, test_data_list = split_data_trial_level(
-            data_dict_list,
-            train_ratio=args.train_ratio,
-            val_ratio=args.val_ratio,
-            test_ratio=args.test_ratio,
-            random_seed=args.seed,
-        )
-    elif args.split_strategy == "file_level":
-        print("\n=== Using File Level Split ===")
-        train_data_list, val_data_list, test_data_list = split_data_file_level(
             data_dict_list,
             train_ratio=args.train_ratio,
             val_ratio=args.val_ratio,
@@ -128,8 +108,8 @@ def main():
 
     # Cache paths (allow disabling)
     cache_prefix = None if args.disable_cache else "cache"
-    train_cache_path = None if args.disable_cache else os.path.join("cache", f"train_data_{args.split_strategy}_pca.pkl")
-    val_cache_path = None if args.disable_cache else os.path.join("cache", f"val_data_{args.split_strategy}_pca.pkl")
+    train_cache_path = None if args.disable_cache else os.path.join("cache", f"train_data_seed_{args.seed}_pca.pkl")
+    val_cache_path = None if args.disable_cache else os.path.join("cache", f"val_data_seed_{args.seed}_pca.pkl")
 
     # Dataset creation
     train_dataset = CalciumDataset_two_stream_pair_pca(

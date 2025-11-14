@@ -127,8 +127,8 @@ def train_model(model, train_loader, val_loader, num_epochs=100, lr=0.001, save_
             train_metrics_history[metric].append(train_metrics[metric] * 100)
             val_metrics_history[metric].append(val_metrics[metric] * 100)
 
-        # Save best model based on F1 score
-        if val_metrics['f1_score'] > best_val_metrics['f1_score']:
+        # Save best model based on accuracy
+        if val_metrics['accuracy'] > best_val_metrics['accuracy']:
             best_val_metrics = val_metrics.copy()
             best_epoch = epoch
             torch.save(model.state_dict(), os.path.join(save_dir, 'best_model.pth'))
@@ -141,7 +141,7 @@ def train_model(model, train_loader, val_loader, num_epochs=100, lr=0.001, save_
                     f"Train Loss: {train_loss:.4f}, Acc: {train_metrics['accuracy'] * 100:.2f}%, "
                     f"P: {train_metrics['precision'] * 100:.2f}%, R: {train_metrics['recall'] * 100:.2f}%, "
                     f"F1: {train_metrics['f1_score'] * 100:.2f}% | "
-                    f"Val Loss: {val_loss:.4f}, Acc: {val_metrics['accuracy'] * 100:.2f}%, "
+                    f"Val Acc: {val_metrics['accuracy'] * 100:.2f}%, "
                     f"P: {val_metrics['precision'] * 100:.2f}%, R: {val_metrics['recall'] * 100:.2f}%, "
                     f"F1: {val_metrics['f1_score'] * 100:.2f}% | "
                     f"LR: {current_lr:.6f}\n")
@@ -155,7 +155,6 @@ def train_model(model, train_loader, val_loader, num_epochs=100, lr=0.001, save_
 
     # Loss Curve
     axs[0, 0].plot(epochs, train_losses, label='Train Loss')
-    axs[0, 0].plot(epochs, val_losses, label='Val Loss')
     axs[0, 0].set_title('Loss Curve')
     axs[0, 0].set_xlabel('Epoch')
     axs[0, 0].set_ylabel('Loss')
@@ -290,8 +289,8 @@ def train_model_two_stream(model, train_loader, val_loader, num_epochs, lr, save
             train_metrics_history[metric].append(train_metrics[metric] * 100)
             val_metrics_history[metric].append(val_metrics[metric] * 100)
 
-        # Save best model based on F1 score
-        if val_metrics['f1_score'] > best_val_metrics['f1_score']:
+        # Save best model based on accuracy
+        if val_metrics['accuracy'] > best_val_metrics['accuracy']:
             best_val_metrics = val_metrics.copy()
             best_epoch = epoch
             torch.save(model.state_dict(), os.path.join(save_dir, 'best_model.pth'))
@@ -304,7 +303,7 @@ def train_model_two_stream(model, train_loader, val_loader, num_epochs, lr, save
                     f"Train Loss: {train_loss:.4f}, Acc: {train_metrics['accuracy'] * 100:.2f}%, "
                     f"P: {train_metrics['precision'] * 100:.2f}%, R: {train_metrics['recall'] * 100:.2f}%, "
                     f"F1: {train_metrics['f1_score'] * 100:.2f}% | "
-                    f"Val Loss: {val_loss:.4f}, Acc: {val_metrics['accuracy'] * 100:.2f}%, "
+                    f"Val Acc: {val_metrics['accuracy'] * 100:.2f}%, "
                     f"P: {val_metrics['precision'] * 100:.2f}%, R: {val_metrics['recall'] * 100:.2f}%, "
                     f"F1: {val_metrics['f1_score'] * 100:.2f}% | "
                     f"LR: {current_lr:.6f}\n")
@@ -318,7 +317,6 @@ def train_model_two_stream(model, train_loader, val_loader, num_epochs, lr, save
 
     # Loss Curve
     axs[0, 0].plot(epochs, train_losses, label='Train Loss')
-    axs[0, 0].plot(epochs, val_losses, label='Val Loss')
     axs[0, 0].set_title('Loss Curve')
     axs[0, 0].set_xlabel('Epoch')
     axs[0, 0].set_ylabel('Loss')

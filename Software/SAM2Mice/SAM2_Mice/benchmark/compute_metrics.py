@@ -290,25 +290,17 @@ def calculate_mot_metrics(gt_data: np.ndarray, pred_data: np.ndarray,
     ], name='MOT_Evaluation')
 
     # Convert to dictionary
+    # Only keep the requested metrics: MOTA, recall, FN, IDF1, IDP, IDR, ID switches (IDs), MT, FM
     results = {
+        'MOTA': summary['mota'].iloc[0] if not summary['mota'].isna().iloc[0] else 0,
+        'Rcll': summary['recall'].iloc[0] if not summary['recall'].isna().iloc[0] else 0,
+        'FN': summary['num_misses'].iloc[0] if not summary['num_misses'].isna().iloc[0] else 0,
         'IDF1': summary['idf1'].iloc[0] if not summary['idf1'].isna().iloc[0] else 0,
         'IDP': summary['idp'].iloc[0] if not summary['idp'].isna().iloc[0] else 0,
         'IDR': summary['idr'].iloc[0] if not summary['idr'].isna().iloc[0] else 0,
-        'Rcll': summary['recall'].iloc[0] if not summary['recall'].isna().iloc[0] else 0,
-        'Prcn': summary['precision'].iloc[0] if not summary['precision'].isna().iloc[0] else 0,
-        'GT': summary['num_objects'].iloc[0] if not summary['num_objects'].isna().iloc[0] else 0,
-        'MT': summary['mostly_tracked'].iloc[0] if not summary['mostly_tracked'].isna().iloc[0] else 0,
-        'PT': summary['partially_tracked'].iloc[0] if not summary['partially_tracked'].isna().iloc[0] else 0,
-        'ML': summary['mostly_lost'].iloc[0] if not summary['mostly_lost'].isna().iloc[0] else 0,
-        'FP': summary['num_false_positives'].iloc[0] if not summary['num_false_positives'].isna().iloc[0] else 0,
-        'FN': summary['num_misses'].iloc[0] if not summary['num_misses'].isna().iloc[0] else 0,
         'IDs': summary['num_switches'].iloc[0] if not summary['num_switches'].isna().iloc[0] else 0,
+        'MT': summary['mostly_tracked'].iloc[0] if not summary['mostly_tracked'].isna().iloc[0] else 0,
         'FM': summary['num_fragmentations'].iloc[0] if not summary['num_fragmentations'].isna().iloc[0] else 0,
-        'MOTA': summary['mota'].iloc[0] if not summary['mota'].isna().iloc[0] else 0,
-        'MOTP': summary['motp'].iloc[0] if not summary['motp'].isna().iloc[0] else 0,
-        'IDt': summary['num_transfer'].iloc[0] if not summary['num_transfer'].isna().iloc[0] else 0,
-        'IDa': summary['num_ascend'].iloc[0] if not summary['num_ascend'].isna().iloc[0] else 0,
-        'IDm': summary['num_migrate'].iloc[0] if not summary['num_migrate'].isna().iloc[0] else 0,
     }
 
     return results, summary
@@ -319,42 +311,17 @@ def print_results(results: Dict[str, Any]):
     print("=" * 60)
     print("MOT Evaluation Results")
     print("=" * 60)
-
-    # Identity metrics
-    print(f"Identity Metrics:")
-    print(f"  IDF1 (Identity F1-Score): {results['IDF1']:.3f}")
-    print(f"  IDP (Identity Precision): {results['IDP']:.3f}")
-    print(f"  IDR (Identity Recall):    {results['IDR']:.3f}")
-
-    # Detection metrics
-    print(f"\nDetection Metrics:")
-    print(f"  Rcll (Recall):      {results['Rcll']:.3f}")
-    print(f"  Prcn (Precision):   {results['Prcn']:.3f}")
-
-    # Track statistics
-    print(f"\nTrajectory Statistics:")
-    print(f"  GT (Ground Truth tracks): {int(results['GT'])}")
-    print(f"  MT (Mostly Tracked):      {int(results['MT'])}")
-    print(f"  PT (Partially Tracked):   {int(results['PT'])}")
-    print(f"  ML (Mostly Lost):         {int(results['ML'])}")
-
-    # Error statistics
-    print(f"\nError Statistics:")
-    print(f"  FP (False Positives): {int(results['FP'])}")
-    print(f"  FN (False Negatives): {int(results['FN'])}")
-    print(f"  IDs (ID Switches):    {int(results['IDs'])}")
-    print(f"  FM (Fragmentations):  {int(results['FM'])}")
-
-    # Overall metrics
-    print(f"\nOverall Metrics:")
-    print(f"  MOTA (Multi-Object Tracking Accuracy):   {results['MOTA']:.3f}")
-    print(f"  MOTP (Multi-Object Tracking Precision):  {results['MOTP']:.3f}")
-
-    # ID change statistics
-    print(f"\nID Change Statistics:")
-    print(f"  IDt (ID Transfers):  {int(results['IDt'])}")
-    print(f"  IDa (ID Ascends):    {int(results['IDa'])}")
-    print(f"  IDm (ID Migrates):   {int(results['IDm'])}")
+    # Print only the selected metrics requested by the user
+    # Order: MOTA, Recall, FN, IDF1, IDP, IDR, ID switches (IDs), MT, FM
+    print(f"  MOTA: {results.get('MOTA', 0):.3f}")
+    print(f"  Recall: {results.get('Rcll', results.get('recall', 0)):.3f}")
+    print(f"  FN (False Negatives): {int(results.get('FN', 0))}")
+    print(f"  IDF1: {results.get('IDF1', 0):.3f}")
+    print(f"  IDP: {results.get('IDP', 0):.3f}")
+    print(f"  IDR: {results.get('IDR', 0):.3f}")
+    print(f"  ID switches (IDs): {int(results.get('IDs', 0))}")
+    print(f"  MT (Mostly Tracked): {int(results.get('MT', 0))}")
+    print(f"  FM (Fragmentations): {int(results.get('FM', 0))}")
 
 
 def compute_mot_metrics(
@@ -394,6 +361,14 @@ def compute_mot_metrics(
             if tracker_type == "bbox":
                 func = reconstruct_all_bboxes
             elif tracker_type == "ellipse":
+                # import trackingutils lazily because it is optional / external
+                try:
+                    from deeplabcut.core import trackingutils
+                except Exception as e:
+                    raise ImportError(
+                        "deeplabcut is required for 'ellipse' tracker_type: "
+                        + str(e)
+                    )
                 func = trackingutils.reconstruct_all_ellipses
             else:
                 raise ValueError(f"Unrecognized tracker type {tracker_type}.")
@@ -471,23 +446,22 @@ if __name__ == "__main__":
         'SAM2Mice': results_SAM2,
     }
 
+    # Only plot the requested metrics
     metrics = [
         ('MOTA', 'MOTA', 'Percentage'),
-        ('FP', 'False positives','Count'),
+        ('Rcll', 'Recall', 'Percentage'),
         ('FN', 'False negatives','Count'),
-        ('IDs', "ID switches",  'Count'),
         ('IDF1','IDF1', 'Percentage'),
         ('IDP', 'IDP','Percentage'),
         ('IDR', 'IDR','Percentage'),
-        ('Rcll', 'Recall', 'Percentage'),
-        ('Prcn', "Precision", 'Percentage'),
-        ('GT', 'GT','Count'),
+        ('IDs', "ID switches",  'Count'),
         ('MT', 'MT','Count'),
         ('FM', 'FM', 'Count'),
     ]
 
+    # grid size: 3x3
     n_rows = 3
-    n_cols = 4
+    n_cols = 3
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 3 * n_rows))
     fig.tight_layout(pad=4)
 
@@ -506,7 +480,8 @@ if __name__ == "__main__":
         ax.set_title(metric_full)
         ax.set_ylabel(ylabel)
         ax.grid(axis='y', linestyle='--', alpha=0.5)
-        
+
+    # remove any unused axes (shouldn't be any for 3x3 but keep robust)
     total_plots = n_rows * n_cols
     for idx in range(len(metrics), total_plots):
         fig.delaxes(axes[idx // n_cols, idx % n_cols])
