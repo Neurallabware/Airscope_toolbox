@@ -1,0 +1,44 @@
+# Spatial upsampling factor before background removal.
+up_sample: 2
+
+# Number of frames processed per background-removal chunk.
+rmbg_chunk_size: 1000
+
+# Number of frames per output zarr chunk.
+zarr_chunk_size: 500
+
+# Grid size used by the background-rejection model.
+rmbg_gsize: 6
+
+# Per-GPU batch size — each GPU processes this many patches independently.
+# Must satisfy: batch_size * 2*f_maps * T_patch * H_patch * W_patch <= INT32_MAX
+# With patch=(128,128,128) and f_maps=32: max batch_size = 8 (16 overflows int32).
+batch_size: 8
+
+# Print one inference progress line every N patch batches. Set 0 to disable.
+print_interval: 20
+
+# Enable CUDA automatic mixed precision for faster inference. Set false to force FP32.
+use_amp: true
+
+# Copy patch outputs from GPU to CPU every N inference batches.
+copy_interval: 4
+
+# Number of independent RMBG worker processes to run on each GPU.
+# Increase only when GPU memory has enough headroom; effective memory use scales
+# roughly with num_process_per_gpu * batch_size.
+num_process_per_gpu: 2
+
+# Background-removal checkpoint path.
+ckpt_pth: ckpt/background_rejection_ckpt_resize_2.pth
+
+# Inference device: usually "cuda" for production runs.
+device: cuda
+
+# Comma-separated physical GPU ids. One model is loaded per GPU.
+# Worker rank maps to GPU by rank % N_GPUs, so multiple workers can share one GPU.
+# Adjust to match your server, e.g. "0,1,2,3" for 4 GPUs.
+gpu_ids: "0,1,2,3"
+
+# Enable multi-GPU background removal.
+multi_gpu: true

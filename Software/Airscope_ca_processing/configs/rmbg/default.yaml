@@ -1,0 +1,39 @@
+# Spatial upsampling factor before background removal.
+up_sample: 2
+
+# Number of frames processed per background-removal chunk.
+rmbg_chunk_size: 1000
+
+# Number of frames per output zarr chunk.
+zarr_chunk_size: 500
+
+# Grid size used by the background-rejection model.
+rmbg_gsize: 6
+
+# Batch size for model inference on each GPU.
+batch_size: 8
+
+# Print one inference progress line every N patch batches. Set 0 to disable.
+print_interval: 10
+
+# Enable CUDA automatic mixed precision for faster inference. Set false to force FP32.
+use_amp: true
+
+# Copy patch outputs from GPU to CPU every N inference batches.
+copy_interval: 4
+
+# Number of independent RMBG worker processes to run on each GPU.
+# Used by multi_gpu mode. Keep at 1 unless GPU memory has enough headroom.
+num_process_per_gpu: 1
+
+# Background-removal checkpoint path.
+ckpt_pth: ckpt/background_rejection_ckpt_resize_2.pth
+
+# Inference device: usually "cuda" for production runs.
+device: cuda
+
+# Comma-separated GPU ids.
+gpu_ids: "0"
+
+# Single-GPU default config.
+multi_gpu: false

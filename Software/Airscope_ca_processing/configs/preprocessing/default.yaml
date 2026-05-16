@@ -1,0 +1,17 @@
+# Initial crop window as [y, x, height, width]; YOLO can refine this automatically.
+crop_parameter: [153, 303, 1000, 1000]
+
+# Enable intensity correction before preprocessing.
+intensity_corr_flag: false
+
+# Enable bad-frame detection/replacement.
+bad_frame_detect_flag: false
+
+# Number of worker processes for preprocessing.
+preprocess_workers: 64
+
+# Number of frames processed per preprocessing chunk.
+preprocess_chunk_size: 512
+
+# Number of frames per output zarr chunk. 500 is a practical default for 2000x2000 frames.
+zarr_chunk_size: 500

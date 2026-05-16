@@ -1,0 +1,22 @@
+# Patch size used when running segmentation on large frames.
+patch_size: 500
+
+# Pixel size in microns after preprocessing.
+pixel_size: 2
+
+# Minimum and expected neuron area in pixels.
+minArea: 50
+avgArea: 100
+
+# Probability-map threshold for candidate active pixels.
+thresh_pmap: 1
+
+# Relative mask threshold used when binarizing soft masks.
+thresh_mask: 0.5
+
+# Center-of-mass merge thresholds in pixels.
+thresh_COM0: 6
+thresh_COM: 10
+
+# Minimum temporal consistency count for final refinement.
+cons: 5

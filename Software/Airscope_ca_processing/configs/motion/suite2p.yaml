@@ -1,0 +1,65 @@
+# Imaging frame rate in Hz.
+fr: 10
+
+# Number of frames processed per motion-correction chunk.
+mc_chunk_size: 1000
+
+# Number of frames per output zarr chunk.
+zarr_chunk_size: 1000
+
+# Motion correction backend selected by this config.
+method: suite2p
+
+# Device for Suite2p registration: "cpu" or "cuda"
+device: cuda
+
+# Suite2p registration settings (overrides for defaults in suite2p_registration/defaults.py)
+suite2p:
+  # Use the second channel for alignment when a second channel is available.
+  align_by_chan2: false
+
+  # Number of frames used to build the registration reference image.
+  nimg_init: 400
+
+  # Maximum global registration shift as a fraction of image size.
+  maxregshift: 0.1
+
+  # Bidirectional phase correction settings.
+  do_bidiphase: false
+  bidiphase: 0.0
+
+  # Frames per Suite2p registration batch.
+  batch_size: 100
+
+  # Enable non-rigid block registration.
+  nonrigid: true
+
+  # Maximum non-rigid shift in pixels.
+  maxregshiftNR: 5
+
+  # Non-rigid block size in pixels.
+  block_size: [128, 128]
+
+  # Temporal and spatial smoothing used during registration.
+  smooth_sigma_time: 0
+  smooth_sigma: 1.15
+
+  # Spatial taper used at block boundaries.
+  spatial_taper: 3.45
+
+  # Bad-frame threshold used by Suite2p.
+  th_badframes: 1.0
+
+  # Normalize frames before registration.
+  norm_frames: true
+
+  # Signal-to-noise threshold for registration.
+  snr_thresh: 1.2
+
+  # Subpixel registration precision.
+  subpixel: 10
+
+  # Optional second pass registration and registered TIFF export.
+  two_step_registration: false
+  reg_tif: false
+  reg_tif_chan2: false

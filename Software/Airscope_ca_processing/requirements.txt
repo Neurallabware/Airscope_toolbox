@@ -1,0 +1,37 @@
+# Pinned from /data/home/angran/anaconda3/envs/PICO/bin/python on 2026-05-14.
+# CUDA build: torch 2.1.1 + cu118.
+--extra-index-url https://download.pytorch.org/whl/cu118
+
+antlr4-python3-runtime==4.9.3
+bokeh==3.8.0
+Flask==3.0.0
+future==1.0.0
+h5py==3.15.1
+holoviews==1.21.0
+hydra-core==1.3.2
+imageio==2.37.0
+ipython==8.37.0
+ipyparallel==9.0.2
+matplotlib==3.10.7
+numba==0.62.1
+numcodecs==0.13.1
+numpy==1.26.4
+olefile==0.47
+omegaconf==2.3.0
+onnxruntime==1.23.2
+opencv-python==4.8.0.74
+pandas==2.3.3
+pillow==11.3.0
+PyYAML==6.0.3
+scikit-image==0.25.2
+scikit-learn==1.7.2
+scipy==1.15.3
+segmentation-models-pytorch==0.5.0
+SQLAlchemy==2.0.44
+tifffile==2022.8.12
+torch==2.1.1+cu118
+torchaudio==2.1.1+cu118
+torchvision==0.16.1+cu118
+tqdm==4.67.1
+ultralytics==8.3.221
+zarr==2.18.3

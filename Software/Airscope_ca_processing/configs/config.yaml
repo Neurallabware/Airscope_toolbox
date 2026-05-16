@@ -1,0 +1,31 @@
+# Default processing stages. Override from the CLI with e.g. `motion=caiman`.
+defaults:
+  - motion: suite2p
+  - preprocessing: default
+  - rmbg: ddp
+  - segmentation: default
+  - hydra: default
+  - _self_
+
+# Resume switches for long jobs. Later stages only run if their inputs already exist.
+jump_to_rmbg: false
+jump_to_seg: false
+jump_to_vis: false
+
+# Set to 0 to process every frame inferred from `data_format` and `data_path`.
+set_frame_num: 0
+
+# Input frame directory and output analysis directory.
+# data_format you can choose tif, jpg, or mp4
+# for jpg and tif, the name should be in the format of "frame_id.jpg" or "frame_id.tif"
+# for mp4, data_path should be the MP4 file path or a directory with exactly one MP4 file.
+data_format: jpg
+data_path: data/input/path
+out_path: data/output/path
+
+# Number of worker processes used by frame I/O.
+io_workers: 16
+
+# Debug AVI export settings.
+avi_quality: 100
+save_debug_video: true

@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the associated study."
+title: "Deciphering cortex-wide neural dynamics of naturally behaving mice by 1-gram wireless mesoscope"
+authors:
+  - family-names: Zhang
+    given-names: Yuanlong
+  - family-names: Li
+    given-names: Angran
+  - family-names: Yuan
+    given-names: Lekang
+  - family-names: Wang
+    given-names: Mingrui
+license: "GPL-2.0-only"

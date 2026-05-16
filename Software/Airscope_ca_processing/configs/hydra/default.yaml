@@ -1,0 +1,8 @@
+# Keep the process working directory unchanged when Hydra launches the job.
+job:
+  chdir: false
+
+# Write Hydra metadata under the configured analysis directory instead of the
+# repository root.
+run:
+  dir: ${out_path}/hydra
