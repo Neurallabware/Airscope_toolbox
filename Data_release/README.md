@@ -11,6 +11,12 @@ link, file descriptions, and minimal loading examples.
 | Enriched habitat | [`experiments/enriched_habitat`](experiments/enriched_habitat) | Single-animal Airscope recording in a 5 m2 naturalistic habitat with synchronized multi-view behavior videos, detection boxes, and top-down arena-region annotations. |
 | Multi-animal interaction | [`experiments/muiti_animal_interaction`](experiments/muiti_animal_interaction) | Multi-animal Airscope recording with behavior videos, SAM2 instance masks, aligned neural activity, cortical labels, neuron centers, and mouse mask centers. |
 
+## MCU Timestamp
+
+Download: [Google Drive](https://drive.google.com/drive/u/0/folders/1EPN6YSidfCAPXQBSYq9nOefI76L-_FHE)
+
+The `MCU_timestamp/` directory contains MCU (Microcontroller Unit) timestamp files for frame rate validation across neural recording. Use `calculate_frame_rate.ipynb` to verify the actual frame rate from the recorded timestamps.
+
 ## Directory Layout
 
 ```text

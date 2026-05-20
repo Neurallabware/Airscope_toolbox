@@ -47,7 +47,7 @@ Place the downloaded files under the repository-level `ckpt/` directory:
 ```text
 ckpt/
   CorrectionMap.npz
-  deepdefinite_ckpt_resize_2.pth
+  background_rejection_ckpt_resize_2
   vessel_model.pt
   yolo_v8s.pt
 ```
