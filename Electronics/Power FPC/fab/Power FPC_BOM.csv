@@ -1,0 +1,8 @@
+"Comment","Description","Designator","Footprint","LibRef","Pins","Quantity","PartNumber","url",
+"10u","desc","C1,C3,","C_0603_Metric","libref","2","2","","",
+"0.1u","desc","C2,","C_0402_Metric","libref","2","1","","",
+"1.5u","desc","L1,","ASIC-0805F","libref","2","1","","",
+"TPS63031","desc","U1,","TPS63031-10SON","libref","11","1","","",
+"Pad1","desc","U2,U3,U6,","Rec_Pad_1","libref","1","3","","",
+"pogo_1","desc","U4,U5,","pogo_1","libref","1","2","","",
+"BM29B-2DP_2-0.35V_51_","desc","J1,","BM29B-2DP_2-0.35V_51__HRS_BM29B-2DP_2-0.35V_51_","libref","6","1","","",

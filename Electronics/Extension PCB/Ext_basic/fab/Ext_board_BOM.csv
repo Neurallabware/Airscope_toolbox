@@ -1,0 +1,6 @@
+"Comment","Description","Designator","Footprint","LibRef","Pins","Quantity","PartNumber","url",
+"CSNP32GCR01-AOW","desc","U1,","SD_NAND_32","libref","8","1","","",
+"1u","desc","C1,","C_0402_Metric","libref","2","1","","",
+"DF40HC3.5-20DS-0.4V51","desc","J1,","CONN20_DF40HC_HIR","libref","20","1","","",
+"10k","desc","R1,R3,R4,","R_0201_Metric","libref","4","3","","",
+"0","desc","R2,","R_0201_Metric","libref","4","1","","",
