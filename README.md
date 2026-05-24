@@ -3,20 +3,6 @@
 
 ### A *1-gram wireless mesoscope* for brain-wide, single-cell resolution imaging with truly unrestricted behavior
 
----
-
-## 📢 Code Availability (IMPORTANT)
-
-The code is hosted on GitHub at:  
-**https://github.com/Neurallabware/Airscope_toolbox**  
-The repository is currently **private** but will be made **publicly accessible upon publication**.
-
-In the meantime, the full codebase can be accessed through Google Drive:  
-**https://drive.google.com/drive/folders/1PhjPooL4QZGT8XVAjhhabJj6SmX-H24e**
-
----
-
-
 
 <p align="justify">
 
