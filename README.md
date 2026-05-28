@@ -90,7 +90,7 @@ https://airscope-docxs.readthedocs.io/en/latest/
   | [SAM2Mice](./Software/SAM2Mice) | Zero-shot behavior segmentation for freely moving mice |
 
 - [**📊 Data Release**](./Data_release)  
-  Supplementary datasets and visualization notebooks.
+  Supplementary datasets and visualization notebooks. The full data release is available at https://drive.google.com/drive/folders/1PhjPooL4QZGT8XVAjhhabJj6SmX-H24e. 
 
 ## 🙏 Citation
 
