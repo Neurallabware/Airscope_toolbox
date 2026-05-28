@@ -71,7 +71,7 @@ https://airscope-docxs.readthedocs.io/en/latest/
 - [**⚙️ Zemax**](./Zemax)  
   Zemax design files for the aspherical lens module.
 
-- [**🛠️ Hardware**](./Hardware)  
+- [**🛠️ Electronics**](./Electronics)  
   Electronic designs for the miniscope and auxiliary supporting PCBs.
 
 - [**⚙️ Firmware**](./Firmware)  
@@ -117,5 +117,4 @@ If you use the code or data, please cite us:
 
 ## Happy imaging! 🎥
 
-## Happy imaging! 🎥
 
