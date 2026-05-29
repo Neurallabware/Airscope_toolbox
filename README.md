@@ -3,20 +3,6 @@
 
 ### A *1-gram wireless mesoscope* for brain-wide, single-cell resolution imaging with truly unrestricted behavior
 
----
-
-## 📢 Code Availability (IMPORTANT)
-
-The code is hosted on GitHub at:  
-**https://github.com/Neurallabware/Airscope_toolbox**  
-The repository is currently **private** but will be made **publicly accessible upon publication**.
-
-In the meantime, the full codebase can be accessed through Google Drive:  
-**https://drive.google.com/drive/folders/1PhjPooL4QZGT8XVAjhhabJj6SmX-H24e**
-
----
-
-
 
 <p align="justify">
 
@@ -49,50 +35,86 @@ In the meantime, the full codebase can be accessed through Google Drive:
 - Zero-shot behavior segmentation with **SAM2Mice**  
 
 
+## Wiki
+
+A comprehensive wiki is maintained by the Airscope team.
+
+To build and use the Airscope device and the associated DAQ software, please visit:  
+https://airscope.org/devkit/
+
+For data processing pipelines and example notebooks, please visit:  
+https://airscope-docxs.readthedocs.io/en/latest/
+
+## ✨ Key Features
+
+### 🔬 Compact yet powerful
+- 6 mm × 6 mm field of view  
+- 4 µm single-cell resolution  
+- < 1 cm total height and ~1 g weight  
+- 1600 × 1200 pixels at 10 fps  
+
+### 📡 Fully wireless
+- Real-time data streaming via Wi-Fi  
+- On-board high-speed data logging  
+- Supports free behavior in complex environments with multiple animals  
+
+### 🎛️ Easy to use
+- Intuitive data acquisition software  
+- Modular data processing pipelines  
+- Zero-shot behavior segmentation with **SAM2Mice**  
+
 ## 📂 Contents
- 
 
 - [**📐 Structure**](./Structure)  
-  System architecture, design documentation, and implementation details  (**CAD**)
+  Mechanical structure design of the Airscope.
 
-<p align="center">
-  <img src="./assets/2.jpg" alt="Airscope Demo" width="400"/>
-</p> 
+- [**⚙️ Zemax**](./Zemax)  
+  Zemax design files for the aspherical lens module.
 
+- [**🛠️ Electronics**](./Electronics)  
+  Electronic designs for the miniscope and auxiliary supporting PCBs.
 
 - [**⚙️ Firmware**](./Firmware)  
-   Embedded control code in **C++** for wireless data transmission and device management
+  Embedded control code running on the Airscope device for wireless image acquisition.
 
-- [**🛠️ Hardware**](./Hardware)  
+- [**🎛️ DAQ Software**](./Software)  
+  PC-side DAQ software for wireless monitoring, control, preview, and recording.
 
-  | Component       | Description                         |
-  |-----------------|-------------------------------------|
-  | [Auxiliary](./Hardware/Auxiliary)       | Additional supporting components    |
-  | [Extension PCB](./Hardware/Extension%20PCB)   | Optional expansion board             |
-  | [LED FPC](./Hardware/LED%20FPC)         | Flexible PCB for LED control         |
-  | [Main PCB](./Hardware/Main%20PCB)        | Core circuit board                   |
-  | [Power FPC](./Hardware/Power%20FPC)      | Flexible PCB for power delivery      |
+- [**💻 Data Processing Software**](./Software)  
+  Data processing pipelines, including the following submodules:
 
+  | Component | Description |
+  |----------|-------------|
+  | [Airscope_ca_processing](./Software/Airscope_ca_processing) | Calcium imaging processing pipeline for Airscope recordings |
+  | [Neuron_BERT](./Software/Neuron_BERT) | Classification network for identifying winners and losers in tube tests |
+  | [SAM2Mice](./Software/SAM2Mice) | Zero-shot behavior segmentation for freely moving mice |
 
-- [**💻 Software**](./Software)  
-  
-  Includes the following submodules:  
+- [**📊 Data Release**](./Data_release)  
+  Supplementary datasets and visualization notebooks. The full data release is available at https://drive.google.com/drive/folders/1PhjPooL4QZGT8XVAjhhabJj6SmX-H24e. 
 
-  | Component       | Description                         |
-  |-----------------|-------------------------------------|
-  | [Neuron_BERT](./Software/Neuron_BERT) | Classification network to determine winners and losers in tube tests |
-  | [SAM2Mice](./Software/SAM2Mice)      | Zero-shot behavior segmentation in freely moving mice |
+## 🙏 Citation
 
+We encourage the community to **use, test, modify, and further develop this toolbox**.
 
-## 🙏 Credits & Usage
+If you have any questions or suggestions, or if you find any bugs in the code, please **contact us** or **submit an issue**.
 
-**Authors:** Yuanlong Zhang, Angran Li, Lekang Yuan and Mingrui Wang  
+If you use the code or data, please cite us:
 
-**Title of associated work:** *Deciphering cortex-wide neural dynamics of naturally behaving mice by 1-gram wireless mesoscope* (manuscript in preparation)  
-
-We encourage people to **use, test, modify, and further develop this toolbox**.  
-If you have any questions or suggestions, or find any bugs in the code, please **contact us** or **submit an issue**.  
-If you use the code or data, please **cite us**!  
+```bibtex
+@article{airscope2025,
+  title   = {Deciphering cortex-wide neural dynamics of naturally
+             behaving mice by 1-gram wireless mesoscope},
+  author  = {Zhang, Yuanlong and Li, Angran and Yuan, Lekang and
+             Wang, Mingrui and Zhao, Weihao and Wang, Zhenbo and
+             Zang, Boyang and Zhou, Yangxuan and Yu, Tao and Gao, Lin
+             and Wu, Yu and Zhu, Rongkang and Tian, Mengyi and Li, Kun
+             and Wu, Jiamin and Dai, Pu and Dai, Qionghai},
+  journal = {Nature},
+  year    = {2025},
+  note    = {Manuscript in preparation}
+}
+```
 
 ## Happy imaging! 🎥
+
 
