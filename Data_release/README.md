@@ -4,6 +4,8 @@ This directory contains supplementary datasets and visualization notebooks for
 the Airscope release. Each experiment has its own README with the download
 link, file descriptions, and minimal loading examples.
 
+Public data release: [Google Drive](https://drive.google.com/drive/folders/1z9ibX8Ob2NnCdjQDHI7Z4tdhdspn647B?usp=drive_link)
+
 ## Experiments
 
 | Dataset | Local directory | Description |
@@ -27,7 +29,6 @@ The `optical_characteristic/` directory contains USAF 1951 target images, and fl
 Data_release/
 ├── optical_characteristic/
 ├── MCU_timestamp/
-├── calibration/
 └── experiments/
     ├── enriched_habitat/
     │   ├── README.md

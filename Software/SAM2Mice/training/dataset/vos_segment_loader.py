@@ -113,7 +113,9 @@ class PalettisedPNGSegmentLoader:
         png_filenames = os.listdir(self.video_png_root)
         self.frame_id_to_png_filename = {}
         for filename in png_filenames:
-            frame_id, _ = os.path.splitext(filename)
+            frame_id, ext = os.path.splitext(filename)
+            if ext.lower() != ".png":
+                continue
             self.frame_id_to_png_filename[int(frame_id)] = filename
 
     def load(self, frame_id):

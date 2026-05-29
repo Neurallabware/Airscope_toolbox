@@ -9,67 +9,9 @@ from sam2.sam2_image_predictor import SAM2ImagePredictor
 from SAM2_Mice.detection import YOLODetector, sample_points_from_masks
 from SAM2_Mice.utils import CommonUtils
 from SAM2_Mice.utils import MaskDictionaryModel, ObjectInfo, create_video_from_images, VideoFrameExtractor
+from SAM2_Mice.utils import filter_overlapping_boxes
 import json
 import copy
-
-
-
-def calculate_overlap_percentage(box1, box2):
-    """Calculate what percentage of box1 is contained within box2"""
-    # Extract coordinates
-    x1_1, y1_1, x2_1, y2_1 = box1
-    x1_2, y1_2, x2_2, y2_2 = box2
-    
-    # Calculate intersection area
-    x_left = max(x1_1, x1_2)
-    y_top = max(y1_1, y1_2)
-    x_right = min(x2_1, x2_2)
-    y_bottom = min(y2_1, y2_2)
-    
-    if x_right < x_left or y_bottom < y_top:
-        return 0.0  # No intersection
-    
-    intersection_area = (x_right - x_left) * (y_bottom - y_top)
-    
-    # Calculate box1 area
-    box1_area = (x2_1 - x1_1) * (y2_1 - y1_1)
-    
-    # Calculate percentage of box1 contained in box2
-    if box1_area == 0:
-        return 0.0
-    
-    return intersection_area / float(box1_area)
-
-
-def filter_overlapping_boxes(boxes, overlap_threshold=0.9):
-    """Filter out boxes that are mostly contained within other boxes"""
-    if len(boxes) <= 1:
-        return boxes
-    
-    # Sort boxes by area (largest first) to prioritize larger detections
-    box_areas = [(i, (b[2]-b[0])*(b[3]-b[1])) for i, b in enumerate(boxes)]
-    box_areas.sort(key=lambda x: x[1], reverse=True)
-    
-    keep_indices = []
-    for i, (idx1, _) in enumerate(box_areas):
-        keep = True
-        for j, (idx2, _) in enumerate(box_areas):
-            # Skip self-comparison
-            if i == j:
-                continue
-            
-            # Calculate what percentage of the smaller box is inside the larger box
-            overlap = calculate_overlap_percentage(boxes[idx1], boxes[idx2])
-            
-            # If this box is mostly contained within another box, don't keep it
-            if overlap > overlap_threshold:
-                keep = False
-                break
-                
-        if keep:
-            keep_indices.append(idx1)
-            
-    return [boxes[i] for i in keep_indices]
 
 
 def auto_tracking_with_sam2(
@@ -118,32 +60,19 @@ def auto_tracking_with_sam2(
         torch.backends.cuda.matmul.allow_tf32 = True
         torch.backends.cudnn.allow_tf32 = True
     
-    # if video_path:
-    #     if not frames_dir:
-    #         frames_dir = os.path.join(os.path.dirname(video_path),
-    #                                         f"{os.path.splitext(os.path.basename(video_path))[0]}_frames")
-    #         if not os.path.exists(frames_dir):
-    #                 raise ValueError("Please make sure frames have been extracted into the default folder!")
-    #     cap = cv2.VideoCapture(video_path)
-    #     if len([file for file in os.listdir(frames_dir) if file.endswith(".jpg")]) != int(cap.get(cv2.CAP_PROP_FRAME_COUNT)):
-    #             raise ValueError("Please make sure extracted frame number is the same as video !")
-    #     cap.release()
-    # elif not os.path.exists(frames_dir):
-    #         raise ValueError("Please make sure the video frame folder exists!")
-
     if not output_dir:
         output_dir = os.path.join(os.path.dirname(video_path), "segmentation_results")
     os.makedirs(output_dir, exist_ok=True)
     print(f"Results save dir {output_dir}")
 
-    CommonUtils.creat_dirs(frames_dir)
-    CommonUtils.creat_dirs(output_dir)
+    CommonUtils.create_dirs(frames_dir)
+    CommonUtils.create_dirs(output_dir)
     mask_data_dir = os.path.join(output_dir, "mask_data")
     json_data_dir = os.path.join(output_dir, "json_data")
     result_dir = os.path.join(output_dir, "result")
-    CommonUtils.creat_dirs(mask_data_dir)
-    CommonUtils.creat_dirs(json_data_dir)
-    CommonUtils.creat_dirs(result_dir)
+    CommonUtils.create_dirs(mask_data_dir)
+    CommonUtils.create_dirs(json_data_dir)
+    CommonUtils.create_dirs(result_dir)
     
     output_video_path = os.path.join(output_dir, "output.mp4")
     
@@ -319,39 +248,3 @@ def auto_tracking_with_sam2(
     CommonUtils.draw_masks_and_box_with_supervision(frames_dir, mask_data_dir, json_data_dir, result_dir)
     create_video_from_images(result_dir, output_video_path, frame_rate=frame_rate)
     
-
-if __name__ == "__main__":
-
-
-    video_path = "notebooks_SAM2-MICE/videos/open_field_three_mice_not_continous.mp4"
-    video_dir = "notebooks_SAM2-MICE/videos/open_field_three_mice_not_continous/frames"
-    VideoFrameExtractor.extract_frames(video_path, video_dir)
-    # 'output_dir' is the directory to save the annotated frames
-    output_dir = "notebooks_SAM2-MICE/videos/open_field_three_mice_not_continous/seg"
-    iou_threshold = 0.3
-
-
-    # video_path = "/mnt/nas01/LAR/pico/Analysis/tracking/segmentation/test_sam2_mice/habitat_2/approach.mp4"
-    # video_dir = "notebooks_SAM2-MICE/videos/habitat_not_continouse/frames"
-    # output_dir = "notebooks_SAM2-MICE/videos/habitat_not_continouse/seg4"
-    # output_video_path = "notebooks_SAM2-MICE/videos/habitat_not_continouse/seg4/output.mp4"
-    # iou_threshold = 0.3
-
-
-    auto_tracking_with_sam2(
-        video_path=video_path,
-        frames_dir=video_dir,
-        output_dir=output_dir,
-        sam2_checkpoint="./checkpoints/sam2_base_five_mouse_finetuned.pt",
-        model_cfg="configs/sam2.1/sam2.1_hiera_b+.yaml",
-        detection_ckpt_path="checkpoints_detection/yolo_v11_l.pt",
-        prompt_type="mask",
-        frame_step=30,
-        frame_rate=30,
-        detection_conf=0.5,
-        iou_threshold=iou_threshold,
-        
-        extract_frames=True,
-        
-        object_label="mouse"
-    )

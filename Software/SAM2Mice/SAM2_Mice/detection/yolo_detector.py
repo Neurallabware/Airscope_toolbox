@@ -121,7 +121,7 @@ class YOLODetector:
         """
         return results[0].boxes.conf.cpu().numpy()
     
-    def infernence_image(self, img, results, save_path=None):
+    def inference_image(self, img, results, save_path=None):
         """
         Visualize detection results on the image.
 
@@ -158,57 +158,7 @@ class YOLODetector:
 
         return boxes
 
-    # def infernence_image(self, img, results, save_path=None):
-    #     """
-    #     Visualize detection results on the image.
-
-    #     Args:
-    #         img: Original image (numpy array)
-    #         results: Results from YOLO prediction
-    #         save_path: Path to save the annotated image
-
-    #     Returns:
-    #         reordered list of boxes
-    #     """
-    #     # 1) Get boxes & confidences
-    #     boxes = self.get_boxes(results)           # shape: (N, 4)
-    #     confidences = self.get_confidence(results) # shape: (N,)
-        
-    #     # 2) define your desired permutation:
-    #     #    here: [1,2,0,3,4] maps old indices 0→1, 1→2, 2→0, 3→3, 4→4
-    #     perm = [1, 2, 0] + list(range(3, len(boxes)))
-        
-    #     # 3) apply it
-    #     boxes       = boxes[perm]
-    #     confidences = confidences[perm]
-        
-    #     # 4) regenerate object IDs and labels in the new order
-    #     object_ids = np.arange(len(boxes), dtype=np.int32) + 1
-    #     labels     = [f"mouse{oid}" for oid in object_ids]
-
-    #     # 5) build your supervision detections
-    #     detections = sv.Detections(
-    #         xyxy=boxes,
-    #         class_id=object_ids,
-    #         confidence=confidences
-    #     )
-
-    #     # 6) draw boxes + labels
-    #     box_annotator   = sv.BoxAnnotator()
-    #     annotated_img   = box_annotator.annotate(scene=img.copy(), detections=detections)
-
-    #     label_annotator = sv.LabelAnnotator()
-    #     annotated_img   = label_annotator.annotate(annotated_img, detections=detections, labels=labels)
-    #     annotated_img   = np.array(annotated_img)
-
-    #     # 7) optionally save
-    #     if save_path:
-    #         cv2.imwrite(save_path, annotated_img)
-
-    #     return boxes
-    
-
-    def infernence_image_with_SAM2(self, img, results, sam2_checkpoint = "./checkpoints/sam2.1_hiera_base_plus.pt",
+    def inference_image_with_SAM2(self, img, results, sam2_checkpoint = "./checkpoints/sam2.1_hiera_base_plus.pt",
                                    sam2_model_cfg = "configs/sam2.1/sam2.1_hiera_b+.yaml", save_path=None):
         """
         Visualize detection results on the image.
@@ -269,6 +219,7 @@ class YOLODetector:
     
     def infernence_video(self, input_video_path, output_video_path, 
                          box_save_path="boxes_per_frame.json"):
+        """Run YOLO inference over a video and save annotated frames plus boxes."""
 
         rectangle_thickness=2
         text_thickness=1
@@ -328,75 +279,6 @@ class YOLODetector:
                 json.dump(all_boxes, f)
 
 
-
-
-
-
-if __name__ == "__main__":
-
-    ####### YOLO detector #######
-
-    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-    
-    # Initialize YOLO detector
-    yolo_model_path = "checkpoints_detection/yolo_v11_l.pt"
-    detector = YOLODetector(yolo_model_path, conf=0.5, device=DEVICE)
-
-
-    # demo1_path = "notebooks_SAM2-MICE/images/demo1.jpg"
-    # img1 = cv2.imread(demo1_path)
-    # results = detector.predict(img=img1, conf=0.5)
-    # detector.infernence_image(img1, results, save_path="notebooks_SAM2-MICE/images/demo1_detected.jpg")
-
-
-    demo1_path = "notebooks_SAM2-MICE/videos/open_field_five_mouse_frames/00002.jpg"
-    img1 = cv2.imread(demo1_path)
-    results = detector.predict(img=img1, conf=0.5)
-    detector.infernence_image(img1, results, save_path="notebooks_SAM2-MICE/images/demo3_detected.jpg")
-
-
-    # demo2_path = "notebooks_SAM2-MICE/images/demo1.jpg"
-    # SAM2_CHECK_POINT = "./checkpoints/sam2_base_five_mouse_finetuned.pt"
-    # SAM2_MODEL_CONFIG = "configs/sam2.1/sam2.1_hiera_b+.yaml"
-
-    # img2 = cv2.imread(demo2_path)
-    # results = detector.predict(img=img2, conf=0.5)
-    # detector.infernence_image_with_SAM2(img2, results, sam2_checkpoint=SAM2_CHECK_POINT,
-    #                                sam2_model_cfg=SAM2_MODEL_CONFIG,
-    #                                save_path="notebooks_SAM2-MICE/images/demo1_detected_and_seged.jpg")
-    
-
-    # VIDEO_PATH = "notebooks_SAM2-MICE/videos/open_field_five_mouse.mp4"
-    # OUTPUT_VIDEO_PATH = "notebooks_SAM2-MICE/videos/open_field_five_mouse_yolo_detect.mp4"
-
-    # detector.infernence_video(VIDEO_PATH, OUTPUT_VIDEO_PATH, 
-    #                             box_save_path="")
-    
-
-    #  ####### YOLO RE-ID tracker #######
-
-    # tracker = MouseTracker(yolo_model_path, num_mice=5, max_missing_frames=50)
-    
-    # OUTPUT_VIDEO_PATH_REID = "notebooks_SAM2-MICE/videos/open_field_five_mouse_yolo_track.mp4"
-    
-    # # Run processing
-    # tracker.process_video(VIDEO_PATH, OUTPUT_VIDEO_PATH_REID, conf=0.5, display=False)
-    
-    # # Clean up
-    # tracker.close()
-
-
-    # VIDEO_PATH = "/mnt/nas01/LAR/pico/Analysis/tracking/segmentation/test_sam2_mice/habitat_2/approach.mp4"
-    # OUTPUT_VIDEO_PATH = "/mnt/nas01/LAR/pico/Analysis/tracking/segmentation/test_sam2_mice/habitat_2/approach_yolo.mp4"
-    # detector.infernence_video(VIDEO_PATH, OUTPUT_VIDEO_PATH, 
-    #                             box_save_path="")
-
-
-
-    # demo1_path = "/mnt/nas01/LAR/pico/Experiments/habitat_ultra_new/SAM_behavior_seg/approach1/raw/00000.jpg"
-    # img1 = cv2.imread(demo1_path)
-    # results = detector.predict(img=img1, conf=0.5)
-    # detector.infernence_image(img1, results, save_path="notebooks_SAM2-MICE/images/demo1_detected.jpg")
     
 
 

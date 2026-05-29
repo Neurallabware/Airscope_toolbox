@@ -34,27 +34,39 @@ class BootstrappingVideoSegmentationInference(VideoSegmentationInference):
         super().__init__(model_cfg, checkpoint_path, vos_optimized)
         self.boots_segment = {}  # Store bootstrapped segments for cross-batch transmission
 
-    def extract_bootstrapping_frames(self, video_path, batch_size=1000, batch_save_dir=""):
+    def extract_bootstrapping_frames(self, video_path, batch_size=1000, batch_save_dir="",
+                                      annotate=False, annotate_batch=0, port=7860, share=False):
         """
         Extract frames from a video file into batches for bootstrapping.
 
         Args:
             video_path (str): Path to the video file.
-            batch_size (int, optional): Number of frames per batch. Defaults to 1000.
-            output_dir (str, optional): Directory to save extracted frames. Defaults to "".
+            batch_size (int): Number of frames per batch. Defaults to 1000.
+            batch_save_dir (str): Root directory to save batch folders.
+            annotate (bool): If True, launch the Gradio annotator on one batch after extraction.
+                             Blocks until you close the UI (Ctrl+C).
+            annotate_batch (int): Index of the batch folder to annotate (default 0 = first batch).
+            port (int): Port for the Gradio server (default 7860).
+            share (bool): Create a public Gradio share link.
 
         Returns:
-            list: List of directories containing extracted frames.
+            list: List of batch directories containing extracted frames.
         """
         if not batch_save_dir:
-            # Get the base directories
             base_path = os.path.dirname(video_path)
-            file_name = os.path.basename(video_path)
-            file_name_without_ext = os.path.splitext(file_name)[0]
+            file_name_without_ext = os.path.splitext(os.path.basename(video_path))[0]
             batch_save_dir = os.path.join(base_path, file_name_without_ext)
 
-        # return VideoFrameExtractor.extract_bootstrapping_frames(video_path, batch_size, output_dir)
-        return VideoFrameExtractor.extract_bootstrapping_frames_multithreaded(video_path, batch_size, batch_save_dir)
+        batch_dirs = VideoFrameExtractor.extract_bootstrapping_frames_multithreaded(
+            video_path, batch_size, batch_save_dir
+        )
+
+        if annotate and batch_dirs:
+            target = batch_dirs[min(annotate_batch, len(batch_dirs) - 1)]
+            from SAM2_Mice.utils.annotator import launch_annotator
+            launch_annotator(target, port=port, share=share)
+
+        return batch_dirs
 
     def run_bootstrapping(self, video_path,
                           frame_interval=1000,
@@ -93,6 +105,10 @@ class BootstrappingVideoSegmentationInference(VideoSegmentationInference):
             if torch.cuda.get_device_properties(0).major >= 8:
                 torch.backends.cuda.matmul.allow_tf32 = True
                 torch.backends.cudnn.allow_tf32 = True
+
+        # Reset state from any previous run on a different video
+        self.segment_manager.clear()
+        self.boots_segment = {}
 
         # Get the base directories
         base_path = os.path.dirname(video_path)
@@ -294,6 +310,7 @@ class BootstrappingVideoSegmentationInference(VideoSegmentationInference):
                                   prompts_exist=True,
                                   prompt_type="point",
                                   boots_predictor=True):
+        """Run SAM2 video propagation for one bootstrapping frame batch."""
         # scan all the JPEG frame names in this directory
         frame_names = [
             p for p in os.listdir(video_dir)
@@ -396,7 +413,12 @@ class BootstrappingVideoSegmentationInference(VideoSegmentationInference):
 
 
     def _load_point_prompts_from_json(self, json_path):
-        """Load point prompts from JSON files.
+        """Load point prompts from labelme JSON files.
+
+        Uses polygon vertices as positive prompt points. The annotator stores
+        Point-mode clicks as ``shape_type == "polygon"`` with
+        ``flags.sam2mice_prompt == "point"``. Regular polygon vertices remain
+        supported for backward compatibility.
 
         Args:
             json_path (str): Path to the directory containing JSON files.
@@ -406,24 +428,34 @@ class BootstrappingVideoSegmentationInference(VideoSegmentationInference):
         """
         prompts = {}
         for file_name in os.listdir(json_path):
-            if file_name.endswith(".json"):
-                # Extract frame number (labelme annotations format like 00000.json)
-                frame_number = int(file_name.split(".")[0])
-                with open(os.path.join(json_path, file_name), 'r') as f:
-                    jsonx = json.load(f)
-                    for item in jsonx['shapes']:
-                        if 'group_id' in item:
-                            ann_obj_id = item["group_id"]  # Corresponds to ann_obj_id
-                        else:
-                            # If no group_id, use a generated one based on label
-                            ann_obj_id = hash(item["label"]) % 100  # Simple hash to get a consistent ID
+            if not file_name.endswith(".json"):
+                continue
+            stem = os.path.splitext(file_name)[0]
+            if not stem.isdigit():
+                continue
+            frame_number = int(stem)
+            with open(os.path.join(json_path, file_name), 'r') as f:
+                jsonx = json.load(f)
 
-                        points = np.array(item["points"], dtype=np.float32)
-                        labels = np.ones(len(points), np.int32)
+            pts_by_obj = {}
+            for item in jsonx.get('shapes', []):
+                shape_type = item.get("shape_type")
+                ann_obj_id = item.get("group_id")
+                pts = item.get("points", [])
+                if ann_obj_id is None:
+                    continue
+                if shape_type == "point" and len(pts) >= 1:
+                    pts_by_obj.setdefault(int(ann_obj_id), []).append(pts[0])
+                elif shape_type == "polygon" and len(pts) >= 1:
+                    pts_by_obj.setdefault(int(ann_obj_id), []).extend(pts)
 
-                        if frame_number not in list(prompts.keys()):
-                            prompts[frame_number] = {}
-                        prompts[frame_number][ann_obj_id] = (points, labels)
+            if not pts_by_obj:
+                continue
+            prompts.setdefault(frame_number, {})
+            for ann_obj_id, pts in pts_by_obj.items():
+                points = np.array(pts, dtype=np.float32)
+                labels = np.ones(len(points), np.int32)
+                prompts[frame_number][ann_obj_id] = (points, labels)
 
         if prompts:
             print(f"Found point prompts in frames: {list(prompts.keys())}")
@@ -431,7 +463,10 @@ class BootstrappingVideoSegmentationInference(VideoSegmentationInference):
         return prompts
 
     def _load_mask_prompts_from_json(self, json_path, save_dir):
-        """Load mask prompts from JSON files.
+        """Load mask prompts from labelme JSON files.
+
+        Rasterizes ``polygon`` and ``rectangle`` shapes; ``group_id`` is used
+        as the SAM2 object id (and as the integer in the label image).
 
         Args:
             json_path (str): Path to the directory containing JSON files.
@@ -442,43 +477,55 @@ class BootstrappingVideoSegmentationInference(VideoSegmentationInference):
         """
         prompts = {}
         for file_name in os.listdir(json_path):
-            if file_name.endswith(".json"):
-                frame_number = int(file_name.split(".")[0])
+            if not file_name.endswith(".json"):
+                continue
+            stem = os.path.splitext(file_name)[0]
+            if not stem.isdigit():
+                continue
+            frame_number = int(stem)
 
-                if frame_number not in list(prompts.keys()):
-                    prompts[frame_number] = {}
+            data = json.load(open(os.path.join(json_path, file_name)))
+            img = utils.image.img_b64_to_arr(data['imageData'])
 
-                data = json.load(open(os.path.join(json_path, file_name)))
-                img = utils.image.img_b64_to_arr(data['imageData'])
+            label_name_to_value = {"_background_": 0}
+            shapes = []
+            for shape in data.get("shapes", []):
+                if shape.get("shape_type") not in ("polygon", "rectangle"):
+                    continue
+                if (shape.get("flags") or {}).get("sam2mice_prompt") == "point":
+                    continue
+                oid = shape.get("group_id")
+                if oid is None:
+                    continue
+                key = f"mouse{int(oid)}"
+                label_name_to_value[key] = int(oid)
+                s = dict(shape)
+                s["label"] = key
+                shapes.append(s)
 
-                label_name_to_value = {"_background_": 0}
-                for shape in sorted(data["shapes"], key=lambda x: x["label"]):
-                    label_name = shape["label"]
-                    if label_name not in label_name_to_value:
-                        label_name_to_value[label_name] = len(label_name_to_value)
+            if not shapes:
+                continue
 
-                lbl, _ = utils.shapes_to_label(
-                    img.shape, data["shapes"], label_name_to_value
-                )
+            lbl, _ = utils.shapes_to_label(img.shape, shapes, label_name_to_value)
 
-                # Visualize mask prompt
-                os.makedirs(os.path.join(save_dir, "prompt_masks"), exist_ok=True)
-                fig, axs = plt.subplots(1, 2, figsize=(8, 4))
-                axs[0].imshow(img)
-                axs[0].axis("off")
-                axs[0].set_title("Original Image")
+            # Visualize mask prompt
+            os.makedirs(os.path.join(save_dir, "prompt_masks"), exist_ok=True)
+            fig, axs = plt.subplots(1, 2, figsize=(8, 4))
+            axs[0].imshow(img)
+            axs[0].axis("off")
+            axs[0].set_title("Original Image")
 
-                axs[1].imshow((lbl * 255).astype(np.uint8), cmap="viridis")
-                axs[1].axis("off")
-                axs[1].set_title("Mask Prompt")
-                plt.savefig(os.path.join(save_dir, "prompt_masks", f"mask_prompt_{frame_number:05d}.jpg"))
-                plt.close()
+            axs[1].imshow((lbl * 255).astype(np.uint8), cmap="viridis")
+            axs[1].axis("off")
+            axs[1].set_title("Mask Prompt")
+            plt.savefig(os.path.join(save_dir, "prompt_masks", f"mask_prompt_{frame_number:05d}.jpg"))
+            plt.close()
 
-                # Extract object masks
-                ids = np.unique(lbl)
-                for i in ids:
-                    if i > 0:  # Skip background
-                        prompts[frame_number][i] = np.array(lbl == i)
+            prompts.setdefault(frame_number, {})
+            ids = np.unique(lbl)
+            for i in ids:
+                if i > 0:
+                    prompts[frame_number][int(i)] = np.array(lbl == i)
 
         if prompts:
             print(f"Found mask prompts in frames: {list(prompts.keys())}")
@@ -627,58 +674,4 @@ class BootstrappingVideoSegmentationInference(VideoSegmentationInference):
             return batched_video_segments[:-1], batched_video_segments[-1], frame_paths[:-1]
         else:
             return batched_video_segments, frame_paths
-
-
-if __name__ == "__main__":
-    # Enable optimizations if CUDA is available
-    if torch.cuda.is_available():
-        torch.autocast("cuda", dtype=torch.bfloat16).__enter__()
-        if torch.cuda.get_device_properties(0).major >= 8:
-            torch.backends.cuda.matmul.allow_tf32 = True
-            torch.backends.cudnn.allow_tf32 = True
-
-    # Configuration
-    model_cfg = "configs/sam2.1/sam2.1_hiera_b+.yaml"
-    checkpoint_path = "./checkpoints/sam2_base_five_mouse_finetuned.pt"
-    detection_ckpt_path = "./checkpoints_detection/yolo_v11_l.pt"
-
-    # # Initialize bootstrapping inference
-    inference = BootstrappingVideoSegmentationInference(model_cfg, checkpoint_path=checkpoint_path)
-
-    # VIDEO_PATH = "/mnt/nas00/LAR/dataset/sam2_train_data/PICO_experiment_video/1006_five_mouse.mp4"
-    VIDEO_PATH = "/mnt/nas00/lk/pico/Experiments/multimice/20250103multimice5/behavior/behavior.mp4"
-
-    # inference.extract_bootstrapping_frames(video_path=VIDEO_PATH, batch_size=1000, batch_save_dir="")
-
-
-    # inference.run_bootstrapping(video_path=VIDEO_PATH,
-    #                       frame_interval=1000,
-    #                       extract_frame=False,
-                          
-    #                       prompt_source="manual", 
-                          
-    #                       detection_frame_idx=0,
-    #                       detection_ckpt_path="", 
-    #                       prompt_type="point", 
-
-    #                       batch_limit=5,
-
-    #                       save_dir=None,
-    #                       fps=10)
-    
-
-    inference.run_bootstrapping(video_path=VIDEO_PATH,
-                          frame_interval=1000,
-                          extract_frame=False,
-                          
-                          prompt_source="detection", 
-                          
-                          detection_frame_idx=2275,
-                          detection_ckpt_path=detection_ckpt_path, 
-                          prompt_type="point", 
-
-                          batch_limit=4,
-
-                          save_dir=None,
-                          fps=10)
 

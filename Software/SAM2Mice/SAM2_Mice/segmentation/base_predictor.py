@@ -86,20 +86,33 @@ class VideoSegmentationInference:
     
     @staticmethod
     def show_box(box, ax):
+        """Draw an xyxy prompt box on a matplotlib axis."""
         x0, y0 = box[0], box[1]
         w, h = box[2] - box[0], box[3] - box[1]
         ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor='green', facecolor=(0, 0, 0, 0), lw=2))
 
-    def extract_frames_before_seg(self, video_path=None, frames_dir=None,):
+    def extract_frames_before_seg(self, video_path=None, frames_dir=None,
+                                   annotate=False, port=7860, share=False):
+        """Extract frames and optionally launch the interactive annotator.
 
-        # Handle inputs
+        Args:
+            video_path: Path to the source video.
+            frames_dir: Directory to save / read frames from.
+            annotate: If True, launch the Gradio annotation UI after extraction.
+                      Access via http://localhost:<port> (use SSH tunnel on remote servers).
+            port: Port for the Gradio server (default 7860).
+            share: If True, create a public Gradio share link.
+        """
         if video_path and not frames_dir:
-            # Extract frames from video
             frames_dir = os.path.join(os.path.dirname(video_path),
                                       f"{os.path.splitext(os.path.basename(video_path))[0]}")
             VideoFrameExtractor.extract_frames(video_path, frames_dir)
         elif video_path and frames_dir:
             VideoFrameExtractor.extract_frames(video_path, frames_dir)
+
+        if annotate and frames_dir:
+            from SAM2_Mice.utils.annotator import launch_annotator
+            launch_annotator(frames_dir, port=port, share=share)
 
     def run(self, video_path=None, frames_dir=None, prompt_source="detection", 
             detection_ckpt_path="", prompt_type="points", save_dir=None, fps=10):
@@ -116,7 +129,8 @@ class VideoSegmentationInference:
         Returns:
             tuple: (video_segments, output_video_path)
         """
-        assert prompt_source in ["detection", "manual"], "SAM2-MICE base only support prompt from automatical detection or external manual prompts"
+        if prompt_source not in ["detection", "manual"]:
+            raise ValueError(f"prompt_source must be 'detection' or 'manual', got '{prompt_source}'")
 
         if video_path:
             if frames_dir is None:
@@ -147,6 +161,10 @@ class VideoSegmentationInference:
         # Initialize segment manager with frame paths
         self.segment_manager.extend_frame_paths(frame_paths)
 
+        prompt_type = prompt_type.lower()
+        if prompt_type == "points":
+            prompt_type = "point"
+
         if prompt_source=="detection":
             
             return self._run_with_automatical_prompts_from_detection(frames_dir=frames_dir, frame_paths=frame_paths, 
@@ -156,32 +174,53 @@ class VideoSegmentationInference:
         elif prompt_source=="manual":
 
             # Get prompts based on prompt type
-            if prompt_type.lower() == "point":
+            if prompt_type == "point":
                 return self._run_with_point_prompts(frames_dir, frame_paths, save_dir, fps)
-            elif prompt_type.lower() == "mask":
+            elif prompt_type == "box":
+                return self._run_with_box_prompts(frames_dir, frame_paths, save_dir, fps)
+            elif prompt_type == "mask":
                 return self._run_with_mask_prompts(frames_dir, frame_paths, save_dir, fps)
             else:
-                raise ValueError(f"Unsupported prompt type: {prompt_type}. Use 'point' or 'mask'")
+                raise ValueError(f"Unsupported prompt type: {prompt_type}. Use 'point', 'box', or 'mask'")
 
     def _run_with_point_prompts(self, frames_dir, frame_paths, save_dir, fps):
-        """Run inference using point prompts."""
-        # Gather point prompts from JSON files
+        """Run inference using point prompts.
 
+        Reads standard labelme JSON and uses polygon vertices as positive SAM2
+        prompt points. The annotator stores Point-mode clicks as
+        ``shape_type == "polygon"`` with ``flags.sam2mice_prompt == "point"``.
+        Regular polygon vertices remain supported for backward compatibility.
+        """
         for file_name in os.listdir(frames_dir):
-            if file_name.endswith(".json"):
-                # Extract frame number (labelme annotations format like 00000.json)
-                frame_number = int(file_name.split(".")[0])
-                with open(os.path.join(frames_dir, file_name), 'r') as f:
-                    jsonx = json.load(f)
-                    for item in jsonx['shapes']:
-                        ann_obj_id = item["group_id"]  # Corresponds to ann_obj_id
-                        points = np.array(item["points"], dtype=np.float32)
-                        labels = np.ones(len(points), np.int32)
+            if not file_name.endswith(".json"):
+                continue
+            stem = os.path.splitext(file_name)[0]
+            if not stem.isdigit():
+                continue
+            frame_number = int(stem)
+            with open(os.path.join(frames_dir, file_name), 'r') as f:
+                jsonx = json.load(f)
 
-                        if frame_number not in list(self.manual_prompts.keys()):
-                            self.manual_prompts[frame_number] = {}
+            # Group point prompts by obj_id. Old polygon-vertex prompts remain supported.
+            pts_by_obj = {}
+            for item in jsonx.get('shapes', []):
+                shape_type = item.get("shape_type")
+                ann_obj_id = item.get("group_id")
+                pts = item.get("points", [])
+                if ann_obj_id is None:
+                    continue
+                if shape_type == "point" and len(pts) >= 1:
+                    pts_by_obj.setdefault(int(ann_obj_id), []).append(pts[0])
+                elif shape_type == "polygon" and len(pts) >= 1:
+                    pts_by_obj.setdefault(int(ann_obj_id), []).extend(pts)
 
-                        self.manual_prompts[frame_number][ann_obj_id] = (points, labels)
+            if not pts_by_obj:
+                continue
+            self.manual_prompts.setdefault(frame_number, {})
+            for ann_obj_id, pts in pts_by_obj.items():
+                points = np.array(pts, dtype=np.float32)
+                labels = np.ones(len(points), np.int32)
+                self.manual_prompts[frame_number][ann_obj_id] = (points, labels)
 
         if not self.manual_prompts:
             raise ValueError("No point prompts found in JSON files")
@@ -249,49 +288,162 @@ class VideoSegmentationInference:
 
         return video_segments, output_video_path
 
-    def _run_with_mask_prompts(self, frames_dir, frame_paths, save_dir, fps):
-        """Run inference using mask prompts."""
-        # Gather mask prompts from JSON files
+    def _run_with_box_prompts(self, frames_dir, frame_paths, save_dir, fps):
+        """Run inference using box prompts from the labelme JSON.
 
+        Consumes shapes whose ``shape_type == "rectangle"`` (two-corner points).
+        If multiple boxes share an obj_id within a frame, only the last one
+        wins (SAM2 video predictor accepts one box per obj_id per frame).
+        """
         for file_name in os.listdir(frames_dir):
-            if file_name.endswith(".json"):
-                # Extract frame number
-                frame_number = int(file_name.split(".")[0])
+            if not file_name.endswith(".json"):
+                continue
+            stem = os.path.splitext(file_name)[0]
+            if not stem.isdigit():
+                continue
+            frame_number = int(stem)
+            with open(os.path.join(frames_dir, file_name), "r") as f:
+                jsonx = json.load(f)
 
-                if frame_number not in list(self.manual_prompts.keys()):
-                    self.manual_prompts[frame_number] = {}
+            box_by_obj = {}
+            for item in jsonx.get("shapes", []):
+                if item.get("shape_type") != "rectangle":
+                    continue
+                ann_obj_id = item.get("group_id")
+                pts = item.get("points", [])
+                if ann_obj_id is None or len(pts) < 2:
+                    continue
+                (x1, y1), (x2, y2) = pts[0], pts[1]
+                x1, x2 = sorted([float(x1), float(x2)])
+                y1, y2 = sorted([float(y1), float(y2)])
+                box_by_obj[int(ann_obj_id)] = np.array([x1, y1, x2, y2], dtype=np.float32)
 
-                data = json.load(open(os.path.join(frames_dir, file_name)))
-                img = utils.image.img_b64_to_arr(data['imageData'])
+            if not box_by_obj:
+                continue
+            self.manual_prompts.setdefault(frame_number, {})
+            for ann_obj_id, box in box_by_obj.items():
+                self.manual_prompts[frame_number][ann_obj_id] = box
 
-                label_name_to_value = {"_background_": 0}
-                for shape in sorted(data["shapes"], key=lambda x: x["label"]):
-                    label_name = shape["label"]
-                    if label_name not in label_name_to_value:
-                        label_name_to_value[label_name] = len(label_name_to_value)
+        if not self.manual_prompts:
+            raise ValueError("No box prompts found in JSON files")
 
-                lbl, _ = utils.shapes_to_label(
-                    img.shape, data["shapes"], label_name_to_value
+        sorted_keys = sorted(self.manual_prompts.keys())
+        self.manual_prompts = {k: self.manual_prompts[k] for k in sorted_keys}
+        print(f"Found box prompts in frames: {list(self.manual_prompts.keys())}")
+
+        self.inference_state = self.predictor.init_state(video_path=frames_dir)
+
+        os.makedirs(os.path.join(save_dir, "prompts"), exist_ok=True)
+        for frame_index, prompt_frame in self.manual_prompts.items():
+            out_obj_ids, out_mask_logits = None, None
+            for ann_obj_id, box in prompt_frame.items():
+                _, out_obj_ids, out_mask_logits = self.predictor.add_new_points_or_box(
+                    inference_state=self.inference_state,
+                    frame_idx=frame_index,
+                    obj_id=ann_obj_id,
+                    box=box,
                 )
 
-                # Visualize mask prompt
-                os.makedirs(os.path.join(save_dir, "prompt_masks"), exist_ok=True)
-                fig, axs = plt.subplots(1, 2, figsize=(8, 4))
-                axs[0].imshow(img)
-                axs[0].axis("off")
-                axs[0].set_title("Original Image")
+            plt.figure(figsize=(12, 8))
+            plt.title(f"Frame {frame_index} with Box Prompts")
+            plt.imshow(Image.open(os.path.join(frames_dir, f"{frame_index:05d}.jpg")))
+            ax = plt.gca()
+            for ann_obj_id, box in prompt_frame.items():
+                self.show_box(box, ax)
+            if out_obj_ids is not None:
+                for i, out_obj_id in enumerate(out_obj_ids):
+                    self.show_mask((out_mask_logits[i] > 0.0).cpu().numpy(), ax, obj_id=out_obj_id)
+            plt.savefig(os.path.join(save_dir, "prompts", f"frame{frame_index:05d}.jpg"))
+            plt.close()
 
-                axs[1].imshow((lbl * 255).astype(np.uint8), cmap="viridis")
-                axs[1].axis("off")
-                axs[1].set_title("Mask Prompt")
-                plt.savefig(os.path.join(save_dir, "prompt_masks", f"mask_prompt_{frame_number:05d}.jpg"))
-                plt.close()
+        video_segments = []
+        for out_frame_idx, out_obj_ids, out_mask_logits in self.predictor.propagate_in_video(self.inference_state):
+            video_segments.append({
+                out_obj_id: (out_mask_logits[i] > 0.0).cpu().numpy()
+                for i, out_obj_id in enumerate(out_obj_ids)
+            })
 
-                # Extract object masks
-                ids = np.unique(lbl)
-                for i in ids:
-                    if i > 0:  # Skip background
-                        self.manual_prompts[frame_number][i] = np.array(lbl == i)
+        frame_interval = len(frame_paths)
+        if len(video_segments) < frame_interval:
+            print(f"Padding {frame_interval - len(video_segments)} missing frames with None")
+            padded_segments = [None] * (frame_interval - len(video_segments))
+            padded_segments.extend(video_segments)
+            video_segments = padded_segments
+
+        self.segment_manager.extend_segments(video_segments)
+
+        output_video_path = os.path.join(save_dir, "segmented_video.mp4")
+        temp_folder = os.path.join(save_dir, "frames")
+        self.segment_manager.generate_masked_video_and_image(output_video_path, fps, temp_folder)
+
+        pickle_save_path = os.path.join(save_dir, "segment_masks.pickle")
+        shape = self.segment_manager.save_video_segments(pickle_save_path)
+
+        self.predictor.reset_state(self.inference_state)
+
+        return video_segments, output_video_path
+
+    def _run_with_mask_prompts(self, frames_dir, frame_paths, save_dir, fps):
+        """Run inference using mask prompts from labelme JSON.
+
+        Rasterizes ``polygon`` and ``rectangle`` shapes via
+        ``labelme.utils.shapes_to_label`` and feeds them to SAM2 as mask prompts.
+        ``group_id`` is used as the SAM2 object id.
+        """
+        for file_name in os.listdir(frames_dir):
+            if not file_name.endswith(".json"):
+                continue
+            stem = os.path.splitext(file_name)[0]
+            if not stem.isdigit():
+                continue
+            frame_number = int(stem)
+
+            if frame_number not in list(self.manual_prompts.keys()):
+                self.manual_prompts[frame_number] = {}
+
+            with open(os.path.join(frames_dir, file_name), "r") as _f:
+                data = json.load(_f)
+            img = utils.image.img_b64_to_arr(data['imageData'])
+
+            # Build a label-name -> integer map keyed by group_id so the
+            # rasterized label image uses the mouse id directly.
+            label_name_to_value = {"_background_": 0}
+            shapes = []
+            for shape in data.get("shapes", []):
+                if shape.get("shape_type") not in ("polygon", "rectangle"):
+                    continue
+                if (shape.get("flags") or {}).get("sam2mice_prompt") == "point":
+                    continue
+                oid = shape.get("group_id")
+                if oid is None:
+                    continue
+                key = f"mouse{int(oid)}"
+                label_name_to_value[key] = int(oid)
+                s = dict(shape)
+                s["label"] = key
+                shapes.append(s)
+
+            if not shapes:
+                continue
+
+            lbl, _ = utils.shapes_to_label(img.shape, shapes, label_name_to_value)
+
+            os.makedirs(os.path.join(save_dir, "prompt_masks"), exist_ok=True)
+            fig, axs = plt.subplots(1, 2, figsize=(8, 4))
+            axs[0].imshow(img)
+            axs[0].axis("off")
+            axs[0].set_title("Original Image")
+
+            axs[1].imshow((lbl * 255).astype(np.uint8), cmap="viridis")
+            axs[1].axis("off")
+            axs[1].set_title("Mask Prompt")
+            plt.savefig(os.path.join(save_dir, "prompt_masks", f"mask_prompt_{frame_number:05d}.jpg"))
+            plt.close()
+
+            ids = np.unique(lbl)
+            for i in ids:
+                if i > 0:
+                    self.manual_prompts[frame_number][int(i)] = np.array(lbl == i)
 
         if not self.manual_prompts:
             raise ValueError("No mask prompts found in JSON files")
@@ -359,82 +511,95 @@ class VideoSegmentationInference:
     
     def _run_with_automatical_prompts_from_detection(self, frames_dir, frame_paths, detection_ckpt_path="", 
                                                      prompt_type="points", save_dir="", fps=10, ann_frame_idx=0):  # the frame index we interact with
-        
+        """Run video segmentation with prompts generated automatically by YOLO."""
+        prompt_type = prompt_type.lower()
+        if prompt_type == "points":
+            prompt_type = "point"
+        if prompt_type not in ["point", "box", "mask"]:
+            raise ValueError(f"prompt_type must be 'point', 'box', or 'mask', got '{prompt_type}'")
 
-        # init video predictor state
-        # init sam image predictor and video predictor model
-
-        sam2_image_model = build_sam2(self.model_cfg, self.checkpoint_path)
-        image_predictor = SAM2ImagePredictor(sam2_image_model)
-
-        self.inference_state = self.predictor.init_state(video_path=frames_dir)
-
-        # prompt grounding dino to get the box coordinates on specific frame
+        # Detect boxes on the annotation frame and use them as SAM2 prompts.
         img_path = frame_paths[ann_frame_idx]
-
         img = cv2.imread(img_path)
+        if img is None:
+            raise ValueError(f"Failed to read annotation frame: {img_path}")
+
         detector = YOLODetector(detection_ckpt_path, conf=0.5)
         results = detector.predict(img=img, conf=0.5)
         boxes = results[0].boxes
 
-        OBJECTS = []
-        # Get boxes in xyxy format
         input_boxes = boxes.xyxy.cpu().numpy()
-        for i, box in enumerate(input_boxes):
-            OBJECTS.append(i + 1)  # Start from 1
+        if len(input_boxes) == 0:
+            raise ValueError(f"No YOLO detections found on frame {ann_frame_idx}: {img_path}")
+        object_ids = np.arange(1, len(input_boxes) + 1, dtype=np.int32)
+        print(f"Detected {len(input_boxes)} objects on frame {ann_frame_idx}")
         print(input_boxes)
 
-        # prompt SAM image predictor to get the mask for the object
-        image_predictor.set_image(img)
+        self.inference_state = self.predictor.init_state(video_path=frames_dir)
 
-        # prompt SAM 2 image predictor to get the mask for the object
-        masks, scores, logits = image_predictor.predict(
-            point_coords=None,
-            point_labels=None,
-            box=input_boxes,
-            multimask_output=False,
-        )
-        # convert the mask shape to (n, H, W)
-        if masks.ndim == 4:
-            masks = masks.squeeze(1)
-
-        assert prompt_type in ["point", "box", "mask"], "SAM 2 video predictor only support point/box/mask prompt"
+        masks = None
+        point_prompts = {}
+        if prompt_type in ["point", "mask"]:
+            sam2_image_model = build_sam2(self.model_cfg, self.checkpoint_path)
+            image_predictor = SAM2ImagePredictor(sam2_image_model)
+            image_predictor.set_image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+            masks, scores, logits = image_predictor.predict(
+                point_coords=None,
+                point_labels=None,
+                box=input_boxes,
+                multimask_output=False,
+            )
+            if masks.ndim == 4:
+                masks = masks.squeeze(1)
 
         # If you are using point prompts, we uniformly sample positive points based on the mask
         if prompt_type == "point":
-            # sample the positive points from mask for each objects
             all_sample_points = sample_points_from_masks(masks=masks, num_points=10)
 
-            for object_id, (label, points) in enumerate(zip(OBJECTS, all_sample_points), start=1):
+            for object_id, points in zip(object_ids, all_sample_points):
                 labels = np.ones((points.shape[0]), dtype=np.int32)
+                point_prompts[int(object_id)] = (points, labels)
                 _, out_obj_ids, out_mask_logits = self.predictor.add_new_points_or_box(
                     inference_state=self.inference_state,
                     frame_idx=ann_frame_idx,
-                    obj_id=object_id,
+                    obj_id=int(object_id),
                     points=points,
                     labels=labels,
                 )
-        # Using box prompt
         elif prompt_type == "box":
-            for object_id, (label, box) in enumerate(zip(OBJECTS, input_boxes), start=1):
+            for object_id, box in zip(object_ids, input_boxes):
                 _, out_obj_ids, out_mask_logits = self.predictor.add_new_points_or_box(
                     inference_state=self.inference_state,
                     frame_idx=ann_frame_idx,
-                    obj_id=object_id,
+                    obj_id=int(object_id),
                     box=box,
                 )
-        # Using mask prompt is a more straightforward way
         elif prompt_type == "mask":
-            for object_id, (label, mask) in enumerate(zip(OBJECTS, masks), start=1):
-                labels = np.ones((1), dtype=np.int32)
+            for object_id, mask in zip(object_ids, masks):
                 _, out_obj_ids, out_mask_logits = self.predictor.add_new_mask(
                     inference_state=self.inference_state,
                     frame_idx=ann_frame_idx,
-                    obj_id=object_id,
-                    mask=mask
+                    obj_id=int(object_id),
+                    mask=mask,
                 )
-        else:
-            raise NotImplementedError("SAM 2 video predictor only support point/box/mask prompts")
+
+        prompt_vis_dir = os.path.join(save_dir, "prompts")
+        os.makedirs(prompt_vis_dir, exist_ok=True)
+        prompt_vis_path = os.path.join(prompt_vis_dir, f"frame{ann_frame_idx:05d}_{prompt_type}_prompt.jpg")
+        plt.figure(figsize=(12, 8))
+        plt.title(f"Detection prompts on frame {ann_frame_idx} ({prompt_type})")
+        plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+        ax = plt.gca()
+        for box in input_boxes:
+            self.show_box(box, ax)
+        if prompt_type == "point":
+            for object_id, (points, labels) in point_prompts.items():
+                self.show_points(points, labels, ax)
+        for i, out_obj_id in enumerate(out_obj_ids):
+            self.show_mask((out_mask_logits[i] > 0.0).cpu().numpy(), ax, obj_id=out_obj_id)
+        plt.axis("off")
+        plt.savefig(prompt_vis_path, bbox_inches="tight", pad_inches=0)
+        plt.close()
         
         # Run propagation and collect results
         video_segments = []
@@ -459,8 +624,7 @@ class VideoSegmentationInference:
         # Generate output video
         output_video_path = os.path.join(save_dir, "segmented_video.mp4")
         temp_folder = os.path.join(save_dir, "masks")
-        # self.segment_manager.generate_masked_video_and_image(output_video_path, fps, temp_folder)
-        self.segment_manager.generate_masked_video_supervision(output_video_path=output_video_path, fps=fps, mask_save_folder=temp_folder)
+        self.segment_manager.generate_masked_video_and_image(output_video_path, fps, temp_folder)
 
         # Save segments for later use
         pickle_save_path = os.path.join(save_dir, "segment_masks.pickle")
@@ -490,74 +654,3 @@ class VideoSegmentationInference:
             self.segment_manager.extend_frame_paths(frame_paths)
 
         return segments
-
-
-if __name__ == "__main__":
-
-    # Enable optimizations if CUDA is available
-    if torch.cuda.is_available():
-        torch.autocast("cuda", dtype=torch.bfloat16).__enter__()
-        if torch.cuda.get_device_properties(0).major >= 8:
-            torch.backends.cuda.matmul.allow_tf32 = True
-            torch.backends.cudnn.allow_tf32 = True
-
-    # Configuration
-    model_cfg = "configs/sam2.1/sam2.1_hiera_b+.yaml"
-    checkpoint_path = "./checkpoints/sam2_base_five_mouse_finetuned.pt"
-
-    # Initialize inference
-    inference = VideoSegmentationInference(model_cfg, checkpoint_path)
-
-    # Option 1: Run from video file with point prompts
-    
-    # video_path = "path/to/video.mp4"
-    # frames_dir = "/mnt/nas01/LAR/pico/Analysis/tracking/segmentation/test_sam2_mice/habitat_1/raw"
-
-    # # inference.extract_frames_before_seg(video_path=video_path)
-
-    # segments, video_output = inference.run(
-    #     video_path=None,
-    #     frames_dir= frames_dir,
-    #     prompt_source = "manual",
-    #     detection_ckpt_path="",
-    #     prompt_type="points",
-    #     save_dir="/mnt/nas01/LAR/pico/Analysis/tracking/segmentation/test_sam2_mice/habitat_1/seg"
-    # )
-
-    # inference.reset()
-
-    # # Option 2: Run from existing frames with mask prompts
-    # frames_dir = "path/to/frames"
-    # segments, video_output = inference.run(
-    #     frames_dir=frames_dir,
-    #     prompt_type="mask",
-    #     save_dir="output/mask_results",
-    #     fps=15
-    # )
-
-    # print(f"Segmentation complete. Output video saved at: {video_output}")
-
-
-    # Option 3: Run prompt-free YOLO detection
-
-    video_path = "notebooks_SAM2-MICE/videos/open_field_five_mouse.mp4"
-    detection_ckpt_path = "checkpoints_detection/yolo_v11_l.pt"
-    frames_dir = None
-
-    inference.extract_frames_before_seg(video_path=video_path)
-
-    segments, video_output = inference.run(
-        video_path=video_path,
-        frames_dir= frames_dir,
-        prompt_source = "detection",
-        detection_ckpt_path=detection_ckpt_path,
-        prompt_type="point",
-        save_dir=None
-    )
-
-    inference.reset()
-
-
-
-
-

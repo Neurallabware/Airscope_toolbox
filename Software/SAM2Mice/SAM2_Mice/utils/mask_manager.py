@@ -12,6 +12,7 @@ import supervision as sv
 
 
 def create_video_from_images(image_folder, output_video_path, frame_rate=25):
+    """Create an MP4 video from sorted image files in a folder."""
     # define valid extension
     valid_extensions = [".jpg", ".jpeg", ".JPG", ".JPEG", ".png", ".PNG"]
     
@@ -46,116 +47,128 @@ def create_video_from_images(image_folder, output_video_path, frame_rate=25):
 
 class VideoSegmentManager:
     """
-    A class to manage video segments, including saving, loading, and visualizing masks.
+    Manages video segmentation masks with in-memory packbits compression.
+
+    Internally every mask is stored as a flat uint8 packbits array (identical to
+    the on-disk format), so RAM usage is ~8x lower than storing bool/float32 arrays.
+    Masks are decompressed on-the-fly only when needed for rendering or saving.
+    The on-disk pickle format (save/load) is unchanged.
     """
 
     def __init__(self):
+        """Initialize empty segment and frame-path storage."""
+        # Each entry is None  OR  {obj_id: uint8 packbits array}
         self.video_segments = []
         self.frame_paths = []
+        # (H, W) of the masks; filled on first non-None segment
+        self._mask_shape: tuple = None
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _pack(self, mask) -> np.ndarray:
+        """Compress a single (1,H,W) or (H,W) bool/float mask to packbits uint8."""
+        mask = np.squeeze(mask)          # → (H, W)
+        if self._mask_shape is None:
+            self._mask_shape = mask.shape
+        return np.packbits(mask.astype(bool), axis=None)
+
+    def _unpack(self, bits: np.ndarray) -> np.ndarray:
+        """Decompress packbits → (1, H, W) int8, matching the original format."""
+        flat = np.unpackbits(bits).astype(np.int8)
+        h, w = self._mask_shape
+        return flat[: h * w].reshape(1, h, w)
+
+    def _pack_segment(self, segment):
+        """Convert a raw {obj_id: mask_array} dict to packed storage."""
+        if segment is None:
+            return None
+        return {obj_id: self._pack(mask) for obj_id, mask in segment.items()}
+
+    def _decode_segment(self, packed):
+        """Decompress a packed segment dict back to {obj_id: (1,H,W) int8}."""
+        if packed is None:
+            return None
+        return {obj_id: self._unpack(bits) for obj_id, bits in packed.items()}
+
+    # ------------------------------------------------------------------
+    # Public API  (unchanged signatures)
+    # ------------------------------------------------------------------
 
     def add_segment(self, segment):
-        """Add a segment to the list of video segments."""
-        self.video_segments.append(segment)
+        """Append one frame's object masks after packbits compression."""
+        self.video_segments.append(self._pack_segment(segment))
 
     def add_frame_path(self, path):
-        """Add a frame path to the list of frame paths."""
+        """Append the source image path associated with one segment frame."""
         self.frame_paths.append(path)
 
     def extend_segments(self, segments):
-        """Extend the list of video segments."""
-        self.video_segments.extend(segments)
+        """Append multiple frame segments after packbits compression."""
+        for seg in segments:
+            self.video_segments.append(self._pack_segment(seg))
 
     def extend_frame_paths(self, paths):
-        """Extend the list of frame paths."""
+        """Append multiple source frame paths."""
         self.frame_paths.extend(paths)
 
     def get_segments(self):
-        """Get the list of video segments."""
-        return self.video_segments
+        """Return fully decompressed segments (same format as before)."""
+        return [self._decode_segment(s) for s in self.video_segments]
 
     def get_frame_paths(self):
-        """Get the list of frame paths."""
+        """Return the stored source frame paths."""
         return self.frame_paths
 
     def clear(self):
-        """Clear all video segments and frame paths."""
+        """Remove all stored frame paths, masks, and cached mask shape."""
         self.video_segments.clear()
         self.frame_paths.clear()
+        self._mask_shape = None
         print("All video segments and frame paths have been cleared.")
-    
+
     def get_len(self):
-        
-        assert len(self.video_segments) == len(self.frame_paths)
-        
+        """Return the synchronized number of stored frames and segments."""
+        if len(self.video_segments) != len(self.frame_paths):
+            raise ValueError(
+                f"Segment count ({len(self.video_segments)}) != "
+                f"frame path count ({len(self.frame_paths)})"
+            )
         return len(self.video_segments)
 
+    # ------------------------------------------------------------------
+    # Disk I/O  (on-disk format unchanged)
+    # ------------------------------------------------------------------
 
     def save_video_segments(self, file_name):
-        """
-        Save video segments to a compressed pickle file.
-
-        Args:
-            file_name (str): Path to save the compressed pickle file.
-
-        Returns:
-            tuple: Shape of the mask (height, width).
-        """
+        """Save to a gzip-compressed pickle; disk format is identical to before."""
         processed_segments = []
-        shape = None
+        shape = self._mask_shape  # already known from add/extend
 
-        for segment in self.video_segments:
-            if segment is None:
+        for packed in self.video_segments:
+            if packed is None:
                 processed_segments.append(None)
                 continue
+            # Already packbits — write directly without re-allocating the full array
+            processed_segments.append(packed)
 
-            processed_segment = {}
-            for obj_id, mask in segment.items():
-                mask = np.squeeze(mask, axis=0)
-                if shape is None and mask is not None:
-                    shape = mask.shape
-                mask = np.where(mask > 0, 1, 0).astype(np.int8)
-                # Convert mask to binary and then to bytes
-                binary_mask = np.packbits(mask, axis=None)
-                processed_segment[obj_id] = binary_mask
-            processed_segments.append(processed_segment)
-
-        # Compress with gzip
         with gzip.open(file_name, 'wb') as f:
             pickle.dump(processed_segments, f)
         print(f"{file_name} saved successfully!")
         return shape
 
     def load_video_segments(self, file_name, shape):
-        """
-        Load video segments from a compressed pickle file.
-
-        Args:
-            file_name (str): Path to the compressed pickle file.
-            shape (tuple): Shape of the mask (height, width).
-
-        Returns:
-            list: List of video segments.
-        """
+        """Load from a gzip-compressed pickle; returns decompressed segments."""
         with gzip.open(file_name, 'rb') as f:
             processed_segments = pickle.load(f)
 
-        self.video_segments = []
-        for segment in processed_segments:
-            if segment is None:
-                self.video_segments.append(None)
-                continue
-
-            decompressed_segment = {}
-            for obj_id, binary_mask in segment.items():
-                # Convert bytes back to mask
-                mask = np.unpackbits(binary_mask).astype(np.int8)
-                mask = mask.reshape(shape)
-                mask = np.expand_dims(mask, axis=0)  # h*w to 1*h*w
-                decompressed_segment[obj_id] = mask
-            self.video_segments.append(decompressed_segment)
-
+        self._mask_shape = shape
+        # Keep data in packed form in memory
+        self.video_segments = processed_segments  # list of None | {obj_id: uint8}
         print(f"Successfully loaded {file_name}!")
-        return self.video_segments
+        # Return decompressed view for callers that iterate immediately
+        return [self._decode_segment(s) for s in self.video_segments]
 
     @staticmethod
     def generate_mask(mask, obj_id=None, random_color=False):
@@ -195,21 +208,23 @@ class VideoSegmentManager:
             os.makedirs(temp_folder)
 
         masked_image_paths = []
-        frame_size = None
+
+        # Determine frame_size before spawning threads to avoid a shared-variable race condition.
+        first_frame = cv2.imread(self.frame_paths[0])
+        frame_size = (first_frame.shape[1], first_frame.shape[0])  # (width, height)
 
         def process_frame(out_frame_idx, frame_path):
-            nonlocal frame_size
+            """Render and save one masked frame for later video assembly."""
             masked_img_path = os.path.join(temp_folder, f'{out_frame_idx:05d}.jpg')
 
-            if self.video_segments[out_frame_idx] is None:
+            packed = self.video_segments[out_frame_idx]
+            if packed is None:
                 shutil.copy(frame_path, masked_img_path)
-                if frame_size is None:
-                    img = cv2.imread(frame_path)
-                    frame_size = (img.shape[1], img.shape[0])  # Width, Height
                 return masked_img_path
 
+            segment = self._decode_segment(packed)
             img = Image.open(frame_path)
-            for out_obj_id, out_mask in self.video_segments[out_frame_idx].items():
+            for out_obj_id, out_mask in segment.items():
                 mask_image = self.generate_mask(out_mask, obj_id=out_obj_id)
                 masked_img_pil = Image.fromarray((mask_image * 255).astype(np.uint8))
                 masked_img = Image.alpha_composite(img.convert('RGBA'), masked_img_pil.convert('RGBA'))
@@ -217,9 +232,6 @@ class VideoSegmentManager:
 
             masked_img = img.convert('RGB')
             masked_img.save(masked_img_path)
-
-            if frame_size is None:
-                frame_size = masked_img.size  # (width, height)
             return masked_img_path
 
         print("Generating masks in parallel...")
@@ -248,34 +260,46 @@ class VideoSegmentManager:
 
     
     def generate_masked_video_supervision(self, output_video_path, fps, mask_save_folder):
+        """Render mask, box, and label overlays with supervision and save a video."""
 
         os.makedirs(mask_save_folder, exist_ok=True)
 
         for frame_idx in tqdm(range(len(self.video_segments))):
-            segments = self.video_segments[frame_idx]
+            packed = self.video_segments[frame_idx]
 
-            if segments is None:
+            if packed is None:
                 shutil.copy(self.frame_paths[frame_idx], os.path.join(mask_save_folder, f"{frame_idx:05d}.jpg"))
                 continue
 
+            segments = self._decode_segment(packed)
             img = cv2.imread(self.frame_paths[frame_idx])
 
-            object_ids = list(segments.keys())
-            masks = list(segments.values())
-            masks = np.concatenate(masks, axis=0)
+            object_ids = []
+            masks = []
+            for obj_id, mask in segments.items():
+                mask = np.squeeze(mask).astype(bool)
+                if mask.any():
+                    object_ids.append(obj_id)
+                    masks.append(mask)
+
+            if not masks:
+                shutil.copy(self.frame_paths[frame_idx], os.path.join(mask_save_folder, f"{frame_idx:05d}.jpg"))
+                continue
+
+            masks = np.stack(masks, axis=0)
 
             detections = sv.Detections(
                 xyxy=sv.mask_to_xyxy(masks),  # (n, 4)
                 mask=masks,  # (n, h, w)
                 class_id=np.array(object_ids, dtype=np.int32),
             )
+            mask_annotator = sv.MaskAnnotator()
+            annotated_frame = mask_annotator.annotate(scene=img.copy(), detections=detections)
             box_annotator = sv.BoxAnnotator()
-            annotated_frame = box_annotator.annotate(scene=img.copy(), detections=detections)
+            annotated_frame = box_annotator.annotate(scene=annotated_frame, detections=detections)
             label_annotator = sv.LabelAnnotator()
             annotated_frame = label_annotator.annotate(annotated_frame, detections=detections,
                                                     labels=[f"mouse{i}" for i in object_ids])
-            mask_annotator = sv.MaskAnnotator()
-            annotated_frame = mask_annotator.annotate(scene=annotated_frame, detections=detections)
             cv2.imwrite(os.path.join(mask_save_folder, f"{frame_idx:05d}.jpg"), annotated_frame)
 
         create_video_from_images(mask_save_folder, output_video_path, frame_rate=fps)
@@ -284,6 +308,7 @@ class VideoSegmentManager:
 import json
 import torch
 from dataclasses import dataclass, field
+from typing import Optional
 
 
 @dataclass
@@ -295,6 +320,7 @@ class MaskDictionaryModel:
     labels:dict = field(default_factory=dict)
 
     def add_new_frame_annotation(self, mask_list, box_list, label_list, background_value = 0):
+        """Build per-object annotations for a frame from masks, boxes, and labels."""
         mask_img = torch.zeros(mask_list.shape[-2:])
         anno_2d = {}
         for idx, (mask, box, label) in enumerate(zip(mask_list, box_list, label_list)):
@@ -316,6 +342,7 @@ class MaskDictionaryModel:
         self.labels = anno_2d
 
     def update_masks(self, tracking_annotation_dict, iou_threshold=0.8, objects_count=0):
+        """Update current object IDs by matching masks against previous annotations."""
         updated_masks = {}
 
         for seg_obj_id, seg_mask in self.labels.items():  # tracking_masks
@@ -346,21 +373,21 @@ class MaskDictionaryModel:
     
     def update_masks_new(self, tracking_annotation_dict, matching_strategy="mask_iou", iou_threshold=0.8, center_weight=0.5, objects_count=0):
         """
-        更新掩码并保持实例ID的一致性
+        Update masks while keeping instance IDs consistent.
         
-        参数:
-        - tracking_annotation_dict: 先前的跟踪注释字典
-        - matching_strategy: 用于匹配掩码的策略，可选：
-            - "mask_iou": 仅使用掩码的IoU
-            - "box_iou": 仅使用边界框的IoU
-            - "hybrid": 结合掩码IoU和边界框IoU
-            - "center_dist": 结合边界框IoU和中心点距离
-        - iou_threshold: IoU阈值，高于此值认为是同一对象
-        - center_weight: 在"center_dist"策略中，中心点距离的权重
-        - objects_count: 初始对象计数
+        Args:
+        - tracking_annotation_dict: Previous tracking annotation dictionary.
+        - matching_strategy: Strategy used to match masks. Options:
+            - "mask_iou": Use mask IoU only.
+            - "box_iou": Use bounding box IoU only.
+            - "hybrid": Combine mask IoU and bounding box IoU.
+            - "center_dist": Combine bounding box IoU and center-point distance.
+        - iou_threshold: IoU threshold above which masks are treated as the same object.
+        - center_weight: Weight of the center-point distance in the "center_dist" strategy.
+        - objects_count: Initial object count.
         
-        返回:
-        - 更新后的对象计数
+        Returns:
+        - Updated object count.
         """
         updated_masks = {}
 
@@ -370,11 +397,11 @@ class MaskDictionaryModel:
             if seg_mask.mask.sum() == 0:
                 continue
             
-            # 如果当前掩码没有边界框信息，计算它
+            # Compute the bounding box if the current mask does not have one.
             if seg_mask.x1 == 0 and seg_mask.x2 == 0 and seg_mask.y1 == 0 and seg_mask.y2 == 0:
                 seg_mask.update_box()
             
-            # 计算当前掩码的中心点
+            # Compute the center point of the current mask.
             current_center_x = (seg_mask.x1 + seg_mask.x2) / 2
             current_center_y = (seg_mask.y1 + seg_mask.y2) / 2
             
@@ -382,52 +409,52 @@ class MaskDictionaryModel:
             best_object_id = None
             
             for object_id, object_info in tracking_annotation_dict.labels.items():
-                # 如果追踪对象没有边界框信息，计算它
+                # Compute the bounding box if the tracked object does not have one.
                 if object_info.x1 == 0 and object_info.x2 == 0 and object_info.y1 == 0 and object_info.y2 == 0:
                     object_info.update_box()
                 
-                # 根据选择的策略计算得分
+                # Compute the score according to the selected strategy.
                 score = 0
                 
                 if matching_strategy == "mask_iou":
-                    # 选项1: 仅使用掩码IoU
+                    # Option 1: Use mask IoU only.
                     score = self.calculate_iou(seg_mask.mask, object_info.mask)
                     
                 elif matching_strategy == "box_iou":
-                    # 选项2: 仅使用边界框IoU
+                    # Option 2: Use bounding box IoU only.
                     score = self.calculate_box_iou(seg_mask, object_info)
                     
                 elif matching_strategy == "hybrid":
-                    # 选项3: 掩码IoU和边界框IoU的组合
+                    # Option 3: Combine mask IoU and bounding box IoU.
                     mask_iou = self.calculate_iou(seg_mask.mask, object_info.mask)
                     box_iou = self.calculate_box_iou(seg_mask, object_info)
                     score = (mask_iou + box_iou) / 2
                     
                 elif matching_strategy == "center_dist":
-                    # 选项4: 边界框IoU结合中心点距离
+                    # Option 4: Combine bounding box IoU with center-point distance.
                     box_iou = self.calculate_box_iou(seg_mask, object_info)
                     
-                    # 计算中心点
+                    # Compute the center point.
                     obj_center_x = (object_info.x1 + object_info.x2) / 2
                     obj_center_y = (object_info.y1 + object_info.y2) / 2
                     
-                    # 计算归一化中心点距离 (越小越好)
+                    # Compute normalized center-point distance. Lower is better.
                     max_dim = max(self.mask_width, self.mask_height)
                     center_dist = torch.sqrt(((current_center_x - obj_center_x) ** 2 + 
                                             (current_center_y - obj_center_y) ** 2)) / max_dim
                     
-                    # 转换为相似度分数 (0-1范围，越大越好)
+                    # Convert to a similarity score in the 0-1 range. Higher is better.
                     center_similarity = 1 - min(center_dist, 1)
                     
-                    # 加权组合
+                    # Weighted combination.
                     score = (1 - center_weight) * box_iou + center_weight * center_similarity
                 
-                # 更新最佳匹配
+                # Update the best match.
                 if score > best_score and score > iou_threshold:
                     # best_score = score
                     best_object_id = object_info.instance_id
             
-            # 如果找到匹配，使用现有ID
+            # Use the existing ID if a match is found.
             if best_object_id is not None:
                 flag = best_object_id
                 new_mask_copy.mask = seg_mask.mask
@@ -438,7 +465,7 @@ class MaskDictionaryModel:
                 new_mask_copy.x2 = seg_mask.x2
                 new_mask_copy.y2 = seg_mask.y2
             else:
-                # 否则分配新ID
+                # Otherwise assign a new ID.
                 objects_count += 1
                 flag = objects_count
                 new_mask_copy.instance_id = objects_count
@@ -457,7 +484,7 @@ class MaskDictionaryModel:
     @staticmethod
     def calculate_box_iou(mask1_info, mask2_info):
         """
-        计算两个边界框的IoU
+        Calculate the IoU between two bounding boxes.
         """
         box1 = [mask1_info.x1, mask1_info.y1, mask1_info.x2, mask1_info.y2]
         box2 = [mask2_info.x1, mask2_info.y1, mask2_info.x2, mask2_info.y2]
@@ -480,26 +507,24 @@ class MaskDictionaryModel:
         return intersection / union if union > 0 else 0.0
 
     def get_target_class_name(self, instance_id):
+        """Return the class name for an instance ID."""
         return self.labels[instance_id].class_name
 
     def get_target_logit(self, instance_id):
+        """Return the stored confidence/logit for an instance ID."""
         return self.labels[instance_id].logit
         
     @staticmethod
     def calculate_iou(mask1, mask2):
-        # Convert masks to float tensors for calculations
+        """Calculate mask IoU between two torch tensors."""
         mask1 = mask1.to(torch.float32)
         mask2 = mask2.to(torch.float32)
-            
-        # Calculate intersection and union
         intersection = (mask1 * mask2).sum()
         union = mask1.sum() + mask2.sum() - intersection
-            
-        # Calculate IoU
-        iou = intersection / union
-        return iou
+        return (intersection / union).item() if union > 0 else 0.0
 
     def save_empty_mask_and_json(self, mask_data_dir, json_data_dir, image_name_list=None):
+        """Write empty mask arrays and matching JSON metadata files."""
         mask_img = torch.zeros((self.mask_height, self.mask_width))
         if image_name_list:
             for image_base_name in image_name_list:
@@ -518,6 +543,7 @@ class MaskDictionaryModel:
 
 
     def to_dict(self):
+        """Serialize this mask dictionary to plain Python objects."""
         return {
             "mask_name": self.mask_name,
             "mask_height": self.mask_height,
@@ -527,10 +553,12 @@ class MaskDictionaryModel:
         }
     
     def to_json(self, json_file):
+        """Write this mask dictionary to a JSON file."""
         with open(json_file, "w") as f:
             json.dump(self.to_dict(), f, indent=4)
             
     def from_json(self, json_file):
+        """Load mask dictionary metadata from a JSON file."""
         with open(json_file, "r") as f:
             data = json.load(f)
             self.mask_name = data["mask_name"]
@@ -544,7 +572,7 @@ class MaskDictionaryModel:
 @dataclass
 class ObjectInfo:
     instance_id:int = 0
-    mask: any = None
+    mask: Optional[torch.Tensor] = None
     class_name:str = ""
     x1:int = 0
     y1:int = 0
@@ -553,25 +581,28 @@ class ObjectInfo:
     logit:float = 0.0
 
     def get_mask(self):
+        """Return the stored object mask tensor."""
         return self.mask
     
     def get_id(self):
+        """Return the object instance ID."""
         return self.instance_id
 
     def update_box(self):
-        # 找到所有非零值的索引
+        """Update bounding-box coordinates from the nonzero mask region."""
+        # Find the indices of all nonzero values.
         nonzero_indices = torch.nonzero(self.mask)
         
-        # 如果没有非零值，返回一个空的边界框
+        # Return an empty bounding box if there are no nonzero values.
         if nonzero_indices.size(0) == 0:
             # print("nonzero_indices", nonzero_indices)
             return []
         
-        # 计算最小和最大索引
+        # Compute the minimum and maximum indices.
         y_min, x_min = torch.min(nonzero_indices, dim=0)[0]
         y_max, x_max = torch.max(nonzero_indices, dim=0)[0]
         
-        # 创建边界框 [x_min, y_min, x_max, y_max]
+        # Create the bounding box [x_min, y_min, x_max, y_max].
         bbox = [x_min.item(), y_min.item(), x_max.item(), y_max.item()]        
         self.x1 = bbox[0]
         self.y1 = bbox[1]
@@ -579,6 +610,7 @@ class ObjectInfo:
         self.y2 = bbox[3]
     
     def to_dict(self):
+        """Serialize object metadata to plain Python objects."""
         return {
             "instance_id": self.instance_id,
             "class_name": self.class_name,
