@@ -1,0 +1,1058 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Airscope</title>
+<style>
+  :root {
+    --bg:#181818; --panel:#232323; --panel-2:#2c2c2c;
+    --fg:#efefef; --muted:#9a9a9a; --accent:#4a78ff; --accent-2:#27107c;
+    --ok:#27c93f; --warn:#f5a623; --err:#ff5555;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:Arial,Helvetica,sans-serif; font-size:15px;
+         display:flex; flex-direction:column; overflow:hidden; }
+
+  main { flex:1 1 0; min-height:0; display:grid;
+         grid-template-columns: 380px minmax(0, 1fr) 380px;
+         gap:14px; padding:14px; overflow:hidden; }
+
+  /* --- left: scope list (transparent container; inner cards carry the style) --- */
+  .scopes-col { min-height:0; overflow:hidden auto;
+                padding:14px 6px 14px 0;
+                display:flex; flex-direction:column; gap:8px; }
+  .scopes-col .heading { font-size:12px; color:var(--muted);
+                         text-transform:uppercase; letter-spacing:0.06em;
+                         padding:0 4px; }
+
+  .scope-card {
+    background:var(--panel); border-radius:6px; padding:10px 12px;
+    cursor:pointer; border:2px solid transparent;
+    transition: border-color 0.15s, background 0.15s;
+    overflow:hidden;
+  }
+  .scope-card:hover { background:#2a2a2a; }
+  .scope-card.selected { border-color: var(--accent); background: #232336; }
+  .scope-card .name {
+    font-size:16px; font-weight:600; color:var(--fg);
+    margin-bottom:1px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .scope-card .ip {
+    font-size:11px; color:var(--muted);
+    font-family:'Consolas','Courier New',monospace; margin-bottom:6px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .scope-card .state {
+    display:inline-block; padding:2px 8px; border-radius:10px;
+    font-size:10px; font-weight:700; letter-spacing:0.05em;
+    text-transform:uppercase; margin-bottom:8px;
+    background:#444; color:var(--fg);
+  }
+  .scope-card .state.idle      { background:#2c4a2c; color:#aef0ae; }
+  .scope-card .state.preview   { background:#2c4a6a; color:#aedaff; }
+  .scope-card .state.recording { background:#6a2c2c; color:#ffaeae; }
+  .scope-card .state.offline   { background:#3a3a3a; color:var(--muted); }
+  .scope-card .stat {
+    display:flex; justify-content:space-between; font-size:12px;
+    margin:2px 0; color:var(--muted);
+  }
+  .scope-card .stat .v { color:var(--fg);
+                         font-family:'Consolas','Courier New',monospace; }
+  .scope-card .card-head { display:flex; align-items:flex-start;
+                           justify-content:space-between; gap:6px;
+                           min-width:0; }
+  .scope-card .card-head > div:first-child { min-width:0; flex:1 1 auto; }
+  .scope-card .remove-btn {
+    background:transparent; color:var(--muted); border:0; cursor:pointer;
+    font-size:18px; line-height:1; padding:0 4px; margin-left:6px;
+    border-radius:3px;
+  }
+  .scope-card .remove-btn:hover { color:var(--err); background:#3a2222; }
+  /* --- device-info section (collapsible like Advanced) --- */
+  .info-row {
+    display:flex; justify-content:space-between; padding:5px 0;
+    border-bottom:1px solid #2c2c2c; gap:14px; font-size:13px;
+  }
+  .info-row:last-child { border-bottom:0; }
+  .info-row .k { color:var(--muted); flex:0 0 110px; }
+  .info-row .v { color:var(--fg); flex:1 1 auto; min-width:0;
+                 font-family:'Consolas','Courier New',monospace;
+                 text-align:right; word-break:break-all; }
+
+  /* --- middle: preview (sits on the page bg, no card) --- */
+  .left-col { display:flex; flex-direction:column; min-height:0; gap:10px; }
+  #stream-wrap {
+    aspect-ratio: 4 / 3; width: 100%;
+    background:#000; border-radius:6px; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--muted); font-size:13px;
+  }
+  #stream { width:100%; height:100%; object-fit:contain; display:block; }
+  #stream.hidden { display:none; }
+
+  /* --- right: controls (transparent container; inner panels carry the style) --- */
+  .right-col { min-height:0; overflow-y:auto;
+               padding:14px 0 14px 6px; }
+
+  .button-row { display:flex; gap:8px; flex-wrap:wrap; flex:0 0 auto;
+                justify-content:center; }
+
+  button, .button {
+    background:var(--accent-2); color:#fff; border:0; border-radius:5px;
+    padding:10px 18px; cursor:pointer; font-size:15px; line-height:1.2;
+    font-weight:600;
+  }
+  button:hover { background:#3a1eb0; }
+  button:disabled { background:#555; cursor:default; }
+  button.recording { background:var(--err); }
+  button.recording:hover { background:#c93333; }
+  button.secondary { background:#444; }
+  button.secondary:hover { background:#555; }
+
+  .panel { background:var(--panel); border-radius:6px; padding:12px 14px; margin-bottom:12px; }
+  .panel h2 { margin:0 0 10px 0; font-size:13px; color:var(--muted);
+              text-transform:uppercase; letter-spacing:0.06em; }
+  .row { display:flex; align-items:center; gap:10px; margin:8px 0; }
+  .row label { flex:0 0 130px; color:var(--muted); font-size:14px; }
+  .row .value { flex:1; min-width:0; }
+  .row .num { flex:0 0 50px; text-align:right; color:var(--fg);
+              font-family:'Consolas','Courier New',monospace; font-size:13px; }
+  input[type=text], input[type=number], select {
+    background:var(--panel-2); color:var(--fg); border:1px solid #444;
+    border-radius:4px; padding:6px 10px; font-size:14px;
+  }
+  input[type=range] { width:100%; }
+  input[type=checkbox] { transform: scale(1.3); margin: 0 6px; }
+
+  details.advanced { background:var(--panel); border-radius:6px; padding:10px 14px; }
+  details.advanced > summary { cursor:pointer; color:var(--fg); font-weight:600;
+                               padding:6px 0; user-select:none; }
+  details.advanced[open] > summary { color:var(--accent); }
+
+  /* Section title — same visual weight as the <summary> rows above/below,
+     but not collapsible. Use this when you want a heading in the right
+     column that always shows its body. */
+  .section-title { color:var(--fg); font-weight:600;
+                   padding:6px 14px; margin-top:2px; }
+
+  .toast { position:fixed; bottom:16px; right:16px; padding:10px 16px;
+           background:var(--accent-2); color:#fff; border-radius:4px;
+           box-shadow:0 2px 8px rgba(0,0,0,0.5); opacity:0;
+           transition:opacity 0.2s; pointer-events:none; z-index:1000; }
+  .toast.show { opacity:1; }
+  .toast.err { background:var(--err); }
+
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+
+<main>
+  <!-- Left: scope list -->
+  <div class="scopes-col">
+    <div class="heading">Airscopes</div>
+    <div style="display:flex; gap:6px; margin:0 4px 6px 4px;">
+      <button id="refresh-btn" class="secondary" style="flex:1;">Refresh</button>
+      <button id="scan-btn"    class="secondary" style="flex:1;">Scan</button>
+    </div>
+    <div style="display:flex; gap:6px; margin:0 4px 10px 4px;">
+      <input id="add-ip-input" type="text" placeholder="A.B.C.D"
+             style="flex:1; min-width:0;">
+      <button id="add-ip-btn" class="secondary">Add</button>
+    </div>
+    <div id="scope-cards"></div>
+  </div>
+
+  <!-- Middle: preview + buttons under it -->
+  <div class="left-col">
+    <div id="stream-wrap">
+      <img id="stream" class="hidden" alt="preview" crossorigin="anonymous">
+      <span id="placeholder">Preview off. Click <strong style="color:var(--fg)">Start Preview</strong>.</span>
+    </div>
+    <div class="button-row">
+      <button id="preview-btn">Start Preview</button>
+      <button id="snapshot-btn">Snapshot</button>
+      <button id="record-btn">Start Recording</button>
+    </div>
+  </div>
+
+  <!-- Right: controls -->
+  <div class="right-col">
+    <div class="section-title">Recording</div>
+    <div class="panel">
+      <div class="row">
+        <label>Folder name</label>
+        <input id="record-name" type="text" value="rec" class="value">
+      </div>
+      <div class="row">
+        <label>Duration (s)</label>
+        <input id="capture-time" type="number" min="1" max="3600" value="30" class="value">
+      </div>
+    </div>
+
+    <div class="section-title">Device Control</div>
+    <div class="panel">
+      <div class="row">
+        <label for="quality">Quality</label>
+        <input id="quality" type="range" min="4" max="63" value="10" class="value default-action">
+        <span class="num" id="quality-val">10</span>
+      </div>
+      <div class="row">
+        <label for="led_intensity">LED intensity</label>
+        <input id="led_intensity" type="range" min="0" max="128" value="0" class="value default-action">
+        <span class="num" id="led_intensity-val">0</span>
+      </div>
+      <div class="row">
+        <label for="aec_value">Exposure</label>
+        <input id="aec_value" type="range" min="0" max="1200" value="600" class="value default-action">
+        <span class="num" id="aec_value-val">600</span>
+      </div>
+      <div class="row">
+        <label for="agc_gain">Gain (manual)</label>
+        <input id="agc_gain" type="range" min="0" max="30" value="5" class="value default-action">
+        <span class="num" id="agc_gain-val">5</span>
+      </div>
+    </div>
+
+    <details class="advanced" id="info-details">
+      <summary>Device info</summary>
+      <div class="panel" style="margin-top:10px;">
+        <div id="info-body">
+          <div class="info-row"><span class="k">…</span><span class="v">…</span></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="advanced" style="margin-top:12px;">
+      <summary>Advanced</summary>
+
+      <div class="panel" style="margin-top:10px;">
+        <div class="row">
+          <label for="device-name">Rename</label>
+          <input id="device-name" type="text" placeholder="new name" class="value">
+          <button id="set-name-btn" class="secondary">Set</button>
+        </div>
+        <div class="row">
+          <label for="framesize">Resolution</label>
+          <select id="framesize" class="value default-action">
+            <option value="13" selected>UXGA (1600x1200)</option>
+            <option value="12">SXGA (1280x1024)</option>
+            <option value="11">HD (1280x720)</option>
+            <option value="10">XGA (1024x768)</option>
+            <option value="9">SVGA (800x600)</option>
+            <option value="8">VGA (640x480)</option>
+            <option value="6">HVGA (480x320)</option>
+            <option value="5">CIF (400x296)</option>
+            <option value="4">QVGA (320x240)</option>
+            <option value="2">QQVGA (160x120)</option>
+          </select>
+        </div>
+        <div class="row">
+          <label for="gainceiling">Gain ceiling</label>
+          <input id="gainceiling" type="range" min="0" max="6" value="2" class="value default-action">
+          <span class="num" id="gainceiling-val">2</span>
+        </div>
+        <div class="row">
+          <label>XCLK (MHz)</label>
+          <input id="xclk" type="number" min="2" max="40" value="16" class="value">
+          <button id="set-xclk-btn" class="secondary">Set</button>
+        </div>
+        <div class="row">
+          <label for="log-interval">Log poll (s)</label>
+          <input id="log-interval" type="number" min="0.2" max="10" step="0.1" value="1" class="value">
+        </div>
+        <div class="row">
+          <label for="aec">Auto exposure</label>
+          <input id="aec" type="checkbox" class="default-action">
+        </div>
+        <div class="row">
+          <label for="agc">Auto gain</label>
+          <input id="agc" type="checkbox" class="default-action">
+        </div>
+        <div class="row">
+          <label for="bpc">Black pixel correction</label>
+          <input id="bpc" type="checkbox" class="default-action">
+        </div>
+        <div class="row">
+          <label for="wpc">White pixel correction</label>
+          <input id="wpc" type="checkbox" class="default-action">
+        </div>
+        <div class="row">
+          <label for="raw_gma">Raw gamma</label>
+          <input id="raw_gma" type="checkbox" class="default-action">
+        </div>
+        <div class="row">
+          <label for="lenc">Lens correction</label>
+          <input id="lenc" type="checkbox" class="default-action">
+        </div>
+        <div class="row">
+          <label for="hmirror">H-Mirror</label>
+          <input id="hmirror" type="checkbox" class="default-action">
+        </div>
+        <div class="row">
+          <label for="vflip">V-Flip</label>
+          <input id="vflip" type="checkbox" class="default-action" checked>
+        </div>
+      </div>
+    </details>
+
+    <details class="advanced" id="sm-details" style="margin-top:12px;">
+      <summary>Serial Monitor</summary>
+      <div class="panel" style="margin-top:10px;">
+        <div class="row" style="flex-wrap:wrap;">
+          <button id="sm-connect-btn" class="secondary">Connect</button>
+          <select id="sm-baud" style="flex:0 0 auto;">
+            <option>9600</option>
+            <option>57600</option>
+            <option selected>115200</option>
+            <option>230400</option>
+            <option>460800</option>
+            <option>921600</option>
+          </select>
+          <button id="sm-clear-btn" class="secondary">Clear</button>
+        </div>
+        <div class="row" style="font-size:12px; gap:14px;">
+          <label style="flex:0 0 auto;"><input type="checkbox" id="sm-autoscroll" checked> autoscroll</label>
+          <label style="flex:0 0 auto;"><input type="checkbox" id="sm-timestamp" checked> timestamps</label>
+          <span id="sm-status" style="margin-left:auto; font-family:'Consolas',monospace; color:var(--muted);">disconnected</span>
+        </div>
+        <div id="sm-incompatible" class="info-row"
+             style="display:none; color:var(--err); font-size:12px;">
+          Web Serial not supported. Use Chrome / Edge / Opera (desktop).
+        </div>
+        <div id="sm-log"
+             style="background:#0c0c0c; color:#dcdcdc; padding:8px 10px;
+                    font-family:'Consolas','Courier New',monospace;
+                    font-size:11px; line-height:1.4; white-space:pre-wrap;
+                    word-break:break-all; overflow-y:auto; height:280px;
+                    margin-top:8px; border-radius:4px;"></div>
+        <div class="row" style="margin-top:8px;">
+          <input id="sm-tx" type="text" placeholder="Send line… (Enter)"
+                 class="value" disabled style="flex:1;">
+          <select id="sm-newline" style="flex:0 0 auto;">
+            <option value="">none</option>
+            <option value="\n">LF</option>
+            <option value="\r">CR</option>
+            <option value="\r\n" selected>CRLF</option>
+          </select>
+          <button id="sm-send-btn" class="secondary" disabled>Send</button>
+        </div>
+      </div>
+    </details>
+
+    <button id="save-config-btn" class="secondary" style="margin-top:12px; width:100%;">Save Config to SD</button>
+  </div>
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script>
+"use strict";
+
+// Scope list comes from the helper's /discover endpoint, which merges:
+//   - persistent registry (host/scopes_registry.json)
+//   - live /whoami poll of every registered IP, every ~5s
+//   - on-demand additions from "Scan local /8" and the manual "Add" input
+// Identity key is MAC (Wi-Fi MAC, returned by /whoami), since DHCP IPs drift.
+
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+
+let currentScopeMac = null;     // MAC of currently-selected scope (or null)
+const scopeInfo = new Map();    // mac -> last merged entry from /discover
+
+function currentScope() { return currentScopeMac ? scopeInfo.get(currentScopeMac) : null; }
+function currentIp()    { const s = currentScope(); return s && s.ip ? s.ip : null; }
+const scopeBase  = () => `http://${currentIp()}`;
+const streamBase = () => `http://${currentIp()}:81`;
+
+let recording   = false;   // whether the *selected* scope is recording
+let previewing  = false;   // whether *this browser* is streaming preview
+let pollTimer   = null;
+let logTimer    = null;    // 1 Hz /log poll on the currently-recording scope
+// Last parsed /log values for the currently-recording scope. We trust the
+// firmware's "Capturing X.X/Ys N frames" string instead of the local JS
+// clock so that any HTTP/UDP-sync delay between Start-Recording click and
+// the firmware actually flipping into the RECORDING state is accounted
+// for. Resets to null on scope deselect / record stop.
+let logElapsed = null;     // e.g. "2.5/5"
+let logFrames  = null;     // number, may stay null until first /log frame arrives
+
+// --- helpers ---
+function toast(msg, isErr = false) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.toggle('err', isErr);
+  t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove('show'), 2500);
+}
+async function getJson(url, timeoutMs = 2000) {
+  const ctl = new AbortController();
+  const id = setTimeout(() => ctl.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, { signal: ctl.signal });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return await r.json();
+  } finally { clearTimeout(id); }
+}
+async function getFire(url) {
+  try { await fetch(url); } catch (e) { toast(`${url}: ${e.message}`, true); }
+}
+
+// --- scope cards (left column) -------------------------------------
+function renderScopeCards() {
+  const root = $('#scope-cards');
+  root.innerHTML = '';
+  const list = [...scopeInfo.values()];
+  if (list.length === 0) {
+    root.innerHTML = `<div style="padding:10px; color:var(--muted); font-size:13px;">
+      No scopes registered. Click <strong style="color:var(--fg)">Scan local network</strong>
+      to find scopes on the same LAN, or type an IP and click
+      <strong style="color:var(--fg)">Add</strong> for scopes on other subnets.
+    </div>`;
+    return;
+  }
+  for (const info of list) {
+    const card = document.createElement('div');
+    card.className = 'scope-card' + (info.mac === currentScopeMac ? ' selected' : '');
+
+    let stateLabel, stateClass;
+    if (!info.online)         { stateLabel = 'offline';   stateClass = 'offline';   }
+    else if (info.recording)  { stateLabel = 'recording'; stateClass = 'recording'; }
+    else if (info.mac === currentScopeMac && previewing) { stateLabel = 'preview'; stateClass = 'preview'; }
+    else                      { stateLabel = 'idle';      stateClass = 'idle';      }
+
+    const name = info.device_name || (info.online ? info.ip : '(offline)');
+    const ipText = info.ip || '(no IP)';
+    const batt = info.batt != null ? Number(info.batt).toFixed(2) + ' V' : '—';
+    const temp = info.temp != null ? Number(info.temp).toFixed(1) + ' °C' : '—';
+    // While the *selected* scope is recording we feed Elapsed / Frames
+    // from the per-second /log poll (firmware's own clock). Other cards
+    // fall back to /whoami's total_frames.
+    const isSelectedRec = info.mac === currentScopeMac && recording;
+    const elapsed = isSelectedRec && logElapsed ? `${logElapsed} s` : null;
+    const frames  = isSelectedRec && logFrames != null
+                    ? logFrames
+                    : (info.recording && info.total_frames > 0
+                       ? Math.floor(info.total_frames) : null);
+
+    card.innerHTML = `
+      <div class="card-head">
+        <div>
+          <div class="name">${name}</div>
+          <div class="ip">${ipText}</div>
+        </div>
+        <button class="remove-btn" title="Remove from registry">×</button>
+      </div>
+      <div class="state ${stateClass}">${stateLabel}</div>
+      ${elapsed !== null ? `<div class="stat"><span>Elapsed</span><span class="v">${elapsed}</span></div>` : ''}
+      ${frames  !== null ? `<div class="stat"><span>Frames</span><span class="v">${frames}</span></div>`  : ''}
+      <div class="stat"><span>Batt</span><span class="v">${batt}</span></div>
+      <div class="stat"><span>Temp</span><span class="v">${temp}</span></div>
+    `;
+    card.onclick = () => selectScope(info.mac);
+    const rm = card.querySelector('.remove-btn');
+    rm.onclick = (e) => { e.stopPropagation(); removeScope(info.mac); };
+    root.appendChild(card);
+  }
+}
+
+async function refreshDiscover() {
+  // Pull merged registry+live state from the helper. /discover only
+  // returns *cached* state — the helper no longer polls in the background.
+  // Call /rescan first if you need fresh /whoami values (the explicit
+  // Refresh button does that; otherwise this just renders whatever the
+  // helper last saw, e.g. from a Scan/Add).
+  let snap;
+  try { snap = await getJson('/discover', 4000); }
+  catch (e) { return; }
+
+  scopeInfo.clear();
+  for (const s of (snap.scopes || [])) {
+    if (s.mac) scopeInfo.set(s.mac.toUpperCase(), s);
+  }
+  if (!currentScopeMac) {
+    const first = [...scopeInfo.values()].find(s => s.online);
+    if (first) currentScopeMac = first.mac.toUpperCase();
+  }
+  // Keep the Advanced > Rename input in sync with whatever name the
+  // helper reports for the selected scope.
+  const nameEl = $('#device-name');
+  const cur = currentScope();
+  if (nameEl && cur && document.activeElement !== nameEl) {
+    nameEl.value = cur.device_name || '';
+  }
+  renderScopeCards();
+  syncRecordButtonFromPoll();
+  renderInfoSection();
+}
+
+async function refreshFromScope() {
+  // Force the helper to re-issue /whoami against every registered scope,
+  // then re-pull the merged snapshot. Used by the Refresh button and
+  // after a recording stop.
+  const btn = $('#refresh-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Refreshing…'; }
+  try { await getJson('/rescan', 8000); } catch (_) {}
+  await refreshDiscover();
+  if (btn) { btn.disabled = false; btn.textContent = 'Refresh'; }
+}
+
+async function scanNetwork() {
+  // Reads the OS ARP table (L2 neighbors) and probes each for /whoami.
+  // Fast — sub-second on a typical LAN. Devices on other subnets won't
+  // appear; use the Add-by-IP input for those.
+  const btn = $('#scan-btn');
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Scanning…';
+  try {
+    const r = await getJson('/scan', 10000);
+    if (!r.ok) toast(`Scan failed: ${r.error || '?'}`, true);
+    else      toast(`Checked ${r.scanned} LAN neighbor(s) in ${r.elapsed_s}s — found ${r.found} scope(s)`);
+  } catch (e) {
+    toast(`Scan error: ${e.message}`, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+  await refreshDiscover();
+}
+
+async function addByIp() {
+  const ip = $('#add-ip-input').value.trim();
+  if (!ip) { toast('Enter an IP first', true); return; }
+  const btn = $('#add-ip-btn');
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = '…';
+  try {
+    const r = await getJson('/add-ip?ip=' + encodeURIComponent(ip), 4000);
+    if (!r.ok) {
+      toast(`${ip}: ${r.error || 'failed'}`, true);
+    } else {
+      toast(`Added ${r.scope.device_name || ip}`);
+      $('#add-ip-input').value = '';
+    }
+  } catch (e) {
+    toast(`Add failed: ${e.message}`, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+  await refreshDiscover();
+}
+
+async function removeScope(mac) {
+  if (!mac) return;
+  const info = scopeInfo.get(mac.toUpperCase());
+  const label = info && info.ip
+    ? `${info.device_name || mac} (${info.ip})`
+    : (info && info.device_name) || mac;
+  if (!confirm(`Remove ${label} from the registry?`)) return;
+  try {
+    const r = await getJson('/remove?mac=' + encodeURIComponent(mac), 4000);
+    if (!r.ok) { toast(`Remove failed`, true); return; }
+    if (mac.toUpperCase() === currentScopeMac) {
+      if (previewing) stopStream();
+      currentScopeMac = null;
+    }
+    scopeInfo.delete(mac.toUpperCase());
+    renderScopeCards();
+    renderInfoSection();
+  } catch (e) {
+    toast(`Remove failed: ${e.message}`, true);
+  }
+  await refreshDiscover();
+}
+
+// --- selection / re-mount ----------------------------------------
+async function selectScope(mac) {
+  mac = mac.toUpperCase();
+  if (mac === currentScopeMac) return;
+  if (previewing) stopStream();
+  currentScopeMac = mac;
+  const info = scopeInfo.get(mac);
+  document.title = `Airscope ${info && info.device_name ? info.device_name : mac}`;
+  const nameEl = $('#device-name');
+  if (nameEl) nameEl.value = (info && info.device_name) || '';
+  if (info && info.online && info.ip) {
+    pushHostIpToScope();
+    await loadStatus();
+  }
+  renderScopeCards();
+  syncRecordButtonFromPoll();
+  renderInfoSection();
+}
+
+async function pushHostIpToScope() {
+  if (!currentIp()) return;
+  try {
+    const info = await getJson('/discover');
+    if (info && info.host_ip) {
+      await fetch(`${scopeBase()}/udpip?udpserverip=${encodeURIComponent(info.host_ip)}`);
+    }
+  } catch (_) { /* helper not running; non-fatal */ }
+}
+
+// --- preview / snapshot / record ---------------------------------
+function startStream() {
+  if (!currentIp()) { toast('No IP for selected scope. Scan or add by IP.', true); return; }
+  const view = $('#stream');
+  view.src = `${streamBase()}/stream?_cb=${Date.now()}`;
+  view.classList.remove('hidden');
+  $('#placeholder').classList.add('hidden');
+  $('#preview-btn').textContent = 'Stop Preview';
+  previewing = true;
+  renderScopeCards();
+}
+function stopStream() {
+  const view = $('#stream');
+  view.src = '';
+  view.classList.add('hidden');
+  $('#placeholder').classList.remove('hidden');
+  $('#preview-btn').textContent = 'Start Preview';
+  previewing = false;
+  renderScopeCards();
+}
+
+function snapshot() {
+  const view = $('#stream');
+  if (!view.naturalWidth) { toast('Start preview first', true); return; }
+  let cv;
+  try {
+    cv = document.createElement('canvas');
+    cv.width = view.naturalWidth; cv.height = view.naturalHeight;
+    cv.getContext('2d').drawImage(view, 0, 0);
+  } catch (e) {
+    toast(`Snapshot draw failed: ${e.message}`, true);
+    return;
+  }
+  // toBlob returns null (and silently does nothing) when the canvas was
+  // tainted by a cross-origin image without CORS. We add `crossorigin` on
+  // the <img> tag for that reason; if a future firmware change drops the
+  // ACAO header, this surfaces the failure instead of hiding it.
+  cv.toBlob((blob) => {
+    if (!blob) {
+      toast('Snapshot blocked (cross-origin canvas). Check firmware CORS.', true);
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const tag = (currentScope() && currentScope().device_name) || currentIp() || 'scope';
+    a.download = `airscope_${tag}_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.jpg`;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }, 'image/jpeg', 0.95);
+}
+
+async function toggleRecord() {
+  if (!currentIp()) { toast('No IP for selected scope. Scan or add by IP.', true); return; }
+  if (!recording) {
+    // Make sure the scope has our current LAN IP before it runs udp_sync().
+    // /udpip is *not* pushed on every poll cycle (it would flood the scope
+    // mid-recording); we push it once here, right before start.
+    await pushHostIpToScope();
+    await getFire(`${scopeBase()}/recordname?name=${encodeURIComponent($('#record-name').value || 'rec')}`);
+    await getFire(`${scopeBase()}/capturetime?capturetime=${parseInt($('#capture-time').value, 10) || 5}`);
+    await getFire(`${scopeBase()}/record/start`);
+    recording = true;
+    // Optimistically flip the selected card to RECORDING so the user
+    // sees state change immediately. /log polling (1 Hz, starts now)
+    // will fill in Elapsed + Frames within ~1 s.
+    const cur = currentScope();
+    if (cur) { cur.recording = true; cur.total_frames = 0; renderScopeCards(); }
+    startLogPoll();
+    $('#record-btn').textContent = 'Stop Recording';
+    $('#record-btn').classList.add('recording');
+  } else {
+    await getFire(`${scopeBase()}/record/stop`);
+    recording = false;
+    const cur = currentScope();
+    if (cur) { cur.recording = false; renderScopeCards(); }
+    stopLogPoll();
+    refreshFromScope();   // get final batt/temp/total_frames once
+    $('#record-btn').textContent = 'Start Recording';
+    $('#record-btn').classList.remove('recording');
+  }
+}
+
+// --- controls --------------------------------------------------
+async function pushControl(name, value) {
+  let v = (typeof value === 'boolean') ? (value ? 1 : 0) : value;
+  await getFire(`${scopeBase()}/control?var=${name}&val=${v}`);
+}
+
+async function loadStatus() {
+  let s;
+  try { s = await getJson(`${scopeBase()}/status`); }
+  catch (e) { toast(`/status failed: ${e.message}`, true); return; }
+  for (const el of $$('.default-action')) {
+    if (!(el.id in s)) continue;
+    if (el.type === 'checkbox') {
+      el.checked = !!s[el.id];
+    } else {
+      el.value = s[el.id];
+      const num = $(`#${el.id}-val`);
+      if (num) num.textContent = el.value;
+    }
+  }
+}
+
+// --- sync the record button to the selected scope's true state ---
+// Called every poll cycle. /whoami carries `recording`, so this catches the
+// firmware's own auto-stop (when capture-time elapses) without needing the
+// old /log polling status bar.
+function syncRecordButtonFromPoll() {
+  const info = currentScope();
+  if (!info || !info.online) return;
+  const fwRec = !!info.recording;
+  if (fwRec && !recording) {
+    recording = true;
+    startLogPoll();
+    $('#record-btn').textContent = 'Stop Recording';
+    $('#record-btn').classList.add('recording');
+  } else if (!fwRec && recording) {
+    recording = false;
+    stopLogPoll();
+    $('#record-btn').textContent = 'Start Recording';
+    $('#record-btn').classList.remove('recording');
+  }
+}
+
+// --- /log polling -----------------------------------------------------
+// Firmware /log returns one text line whose recording prefix is:
+//   "[Capturing %.1f/%ds %.0f frames] InitBatt:.. Temp:.. Runtime:.."
+// (see app_httpd.cpp::log_handler). We poll once a second only while
+// recording is active on the selected scope so elapsed/frame counters
+// reflect the firmware's own clock — not the JS Start-Recording click
+// time, which can be off by a UDP-sync round-trip.
+//
+// Subtle bit: for the first ~100-1000 ms after /record/start the
+// firmware's total_frames is still -1 (record_init is doing UDP sync
+// + creating SD files), so the line looks like "[Capturing 0.0/15s -1
+// frames]" — the negative number won't fit a [\d.]+ group. So we use
+// the [Capturing prefix *alone* as the "is recording" signal and parse
+// the numbers separately; if they don't parse we just keep the previous
+// elapsed/frame values rather than flipping state.
+const _LOG_PREFIX = /\[Capturing\b/;
+const _LOG_RE     = /\[Capturing\s+([\d.]+)\/(\d+)s\s+(-?[\d.]+)\s+frames\]/;
+
+async function pollLogOnce() {
+  if (!recording || !currentIp()) return;
+  let txt;
+  try {
+    const r = await fetch(`${scopeBase()}/log`, { cache: 'no-store' });
+    if (!r.ok) return;
+    txt = await r.text();
+  } catch (_) { return; }   // transient — next tick will retry
+
+  if (_LOG_PREFIX.test(txt)) {
+    // Still recording. Update counters when the detailed numbers parse;
+    // otherwise hold the previous values steady.
+    const m = txt.match(_LOG_RE);
+    if (m) {
+      logElapsed = `${parseFloat(m[1]).toFixed(1)}/${m[2]}`;
+      const f = parseFloat(m[3]);
+      logFrames = f >= 0 ? Math.floor(f) : (logFrames ?? 0);
+      renderScopeCards();
+    }
+    return;
+  }
+
+  // No "[Capturing" prefix at all → firmware finished the recording on
+  // its own (capture_time hit). Flip local state and do one /whoami
+  // sweep to pick up final batt/temp/total_frames.
+  recording = false;
+  const cur = currentScope();
+  if (cur) cur.recording = false;
+  stopLogPoll();
+  $('#record-btn').textContent = 'Start Recording';
+  $('#record-btn').classList.remove('recording');
+  refreshFromScope();
+}
+function logPollIntervalMs() {
+  // Advanced > "Log poll (s)". Min clamp matches the input's min=0.2.
+  const v = parseFloat(($('#log-interval') || {}).value);
+  return Math.max(200, isFinite(v) ? v * 1000 : 1000);
+}
+function startLogPoll() {
+  if (logTimer) clearInterval(logTimer);
+  logElapsed = null; logFrames = null;
+  pollLogOnce();
+  logTimer = setInterval(pollLogOnce, logPollIntervalMs());
+}
+function stopLogPoll() {
+  if (logTimer) { clearInterval(logTimer); logTimer = null; }
+  logElapsed = null; logFrames = null;
+  renderScopeCards();
+}
+
+// --- advanced ---
+// Pure host-side relabel. Updates the registry card immediately, then
+// offers to fire POST /config (same call the "Save Config to SD" button
+// makes) so the rest of the scope's config gets rewritten at the same
+// moment. Caveat: the firmware has no endpoint to receive the new name
+// at runtime, so POST /config will save the *firmware's existing*
+// device_name to SD, not the one typed here. The card label change is
+// local-only until either the SD is edited directly or the firmware is
+// extended.
+async function applyDeviceName() {
+  const cur = currentScope();
+  if (!cur || !currentIp()) { toast('No scope selected', true); return; }
+  const raw = $('#device-name').value.trim();
+  if (!raw) { toast('Type a name first', true); return; }
+  const safe = raw.replace(/[^A-Za-z0-9_.\-]/g, '_') || 'scope';
+
+  cur.device_name = safe;
+  document.title = `Airscope ${safe}`;
+  renderScopeCards();
+  renderInfoSection();
+
+  if (!confirm(`Card relabeled to "${safe}" locally.\n\n` +
+               `Click OK to also run "Save Config to SD" on the scope ` +
+               `(persists current camera params — device_name itself ` +
+               `won't update on SD without a firmware endpoint).`)) {
+    toast(`Renamed to ${safe} (local)`);
+    return;
+  }
+  try {
+    const r = await fetch(`${scopeBase()}/config`, { method: 'POST' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    toast(`Saved config to SD`);
+  } catch (e) {
+    toast(`Save failed: ${e.message}`, true);
+  }
+}
+
+function wireAdvanced() {
+  $('#set-xclk-btn').onclick = () =>
+    getFire(`${scopeBase()}/xclk?xclk=${parseInt($('#xclk').value, 10)}`);
+  $('#set-name-btn').onclick = applyDeviceName;
+  $('#device-name').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); applyDeviceName(); }
+  });
+  // Re-arm /log polling on the fly if the user changes the interval
+  // while a recording is in progress.
+  $('#log-interval').addEventListener('change', () => {
+    if (logTimer) {
+      clearInterval(logTimer);
+      logTimer = setInterval(pollLogOnce, logPollIntervalMs());
+    }
+  });
+}
+
+// --- device info section (collapsible <details> in right column) ---
+// Always shows the SELECTED scope's info. Updates every poll cycle.
+function renderInfoSection() {
+  const info = currentScope();
+  if (!info) {
+    $('#info-body').innerHTML =
+      `<div class="info-row"><span class="k">No scope selected</span><span class="v">—</span></div>`;
+    return;
+  }
+  const fmt = (v) => v == null || v === '' ? '—' : String(v);
+  const state = !info.online ? 'offline' : (info.recording ? 'recording' : 'idle');
+  const rows = [
+    ['Name',          info.device_name],
+    ['IP',            info.ip],
+    ['MAC',           info.mac],
+    ['Firmware',      info.fw],
+    ['Status',        state],
+    ['Battery',       info.batt != null ? `${Number(info.batt).toFixed(2)} V` : null],
+    ['Temperature',   info.temp != null ? `${Number(info.temp).toFixed(1)} °C` : null],
+    ['Total frames',  info.total_frames != null ? Math.floor(info.total_frames) : null],
+    ['Last source',   info.last_source],
+  ];
+  $('#info-body').innerHTML = rows.map(([k, v]) =>
+    `<div class="info-row"><span class="k">${k}</span><span class="v">${fmt(v)}</span></div>`
+  ).join('');
+}
+
+// --- embedded Serial Monitor (Web Serial) ----------------------------
+// Same logic as the standalone host/serial.html, namespaced under sm_*.
+// Opens whichever USB-serial port the user picks via the browser's
+// permission dialog; doesn't require the helper.
+const sm = {
+  port: null,
+  reader: null,
+  writer: null,
+  keepReading: false,
+  buf: "",
+};
+
+function sm_supported() { return 'serial' in navigator; }
+
+function sm_setStatus(text, color) {
+  const el = $('#sm-status');
+  el.textContent = text;
+  el.style.color = color || 'var(--muted)';
+}
+
+function sm_append(text, color) {
+  const div = document.createElement('div');
+  if ($('#sm-timestamp').checked) {
+    const span = document.createElement('span');
+    span.style.color = '#5a5a5a';
+    span.style.marginRight = '6px';
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    span.textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${String(d.getMilliseconds()).padStart(3,'0')}`;
+    div.appendChild(span);
+  }
+  if (color) div.style.color = color;
+  div.appendChild(document.createTextNode(text));
+  const log = $('#sm-log');
+  log.appendChild(div);
+  if ($('#sm-autoscroll').checked) log.scrollTop = log.scrollHeight;
+}
+function sm_info(m) { sm_append(m, 'var(--muted)'); }
+function sm_err(m)  { sm_append(m, 'var(--err)'); }
+
+async function sm_connect() {
+  if (!sm_supported()) { $('#sm-incompatible').style.display = 'block'; return; }
+  try {
+    sm.port = await navigator.serial.requestPort();
+  } catch (e) { sm_info(`port selection canceled`); return; }
+  const baudRate = parseInt($('#sm-baud').value, 10);
+  try {
+    await sm.port.open({ baudRate });
+  } catch (e) { sm_err(`open failed: ${e.message}`); sm.port = null; return; }
+  sm_setStatus(`connected @ ${baudRate}`, 'var(--ok)');
+  $('#sm-connect-btn').textContent = 'Disconnect';
+  $('#sm-connect-btn').classList.add('recording');   // reuse the red style
+  $('#sm-tx').disabled = false;
+  $('#sm-send-btn').disabled = false;
+  if (sm.port.writable) sm.writer = sm.port.writable.getWriter();
+  sm.keepReading = true;
+  sm_readLoop().catch((e) => sm_err(`read loop crashed: ${e.message}`));
+}
+
+async function sm_readLoop() {
+  const dec = new TextDecoderStream();
+  const closed = sm.port.readable.pipeTo(dec.writable).catch(() => {});
+  sm.reader = dec.readable.getReader();
+  try {
+    while (sm.keepReading) {
+      const { value, done } = await sm.reader.read();
+      if (done) break;
+      if (!value) continue;
+      sm.buf += value;
+      let idx;
+      while ((idx = sm.buf.indexOf('\n')) >= 0) {
+        const line = sm.buf.slice(0, idx).replace(/\r$/, '');
+        sm.buf = sm.buf.slice(idx + 1);
+        sm_append(line);
+      }
+    }
+  } catch (e) {
+    sm_err(`read error: ${e.message}`);
+  } finally {
+    try { sm.reader.releaseLock(); } catch (_) {}
+    sm.reader = null;
+  }
+  await closed;
+}
+
+async function sm_disconnect() {
+  sm.keepReading = false;
+  if (sm.writer) { try { sm.writer.releaseLock(); } catch (_) {} sm.writer = null; }
+  if (sm.reader) { try { await sm.reader.cancel(); } catch (_) {} }
+  if (sm.port)   { try { await sm.port.close(); } catch (_) {} sm.port = null; }
+  sm_setStatus('disconnected');
+  $('#sm-connect-btn').textContent = 'Connect';
+  $('#sm-connect-btn').classList.remove('recording');
+  $('#sm-tx').disabled = true;
+  $('#sm-send-btn').disabled = true;
+  if (sm.buf.length) { sm_append(sm.buf); sm.buf = ''; }
+  sm_info('disconnected');
+}
+
+async function sm_send() {
+  if (!sm.writer) return;
+  const txt = $('#sm-tx').value;
+  const ending = $('#sm-newline').value.replace(/\\n/g, '\n').replace(/\\r/g, '\r');
+  try {
+    await sm.writer.write(new TextEncoder().encode(txt + ending));
+    sm_info(`> ${txt}`);
+    $('#sm-tx').value = '';
+  } catch (e) { sm_err(`send: ${e.message}`); }
+}
+
+function sm_wire() {
+  if (!sm_supported()) {
+    $('#sm-incompatible').style.display = 'block';
+    $('#sm-connect-btn').disabled = true;
+    return;
+  }
+  $('#sm-connect-btn').onclick = () => sm.port ? sm_disconnect() : sm_connect();
+  $('#sm-clear-btn').onclick   = () => { $('#sm-log').innerHTML = ''; sm.buf = ''; };
+  $('#sm-send-btn').onclick    = sm_send;
+  $('#sm-tx').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); sm_send(); }
+  });
+}
+
+// --- boot ---
+async function boot() {
+  document.title = 'Airscope';
+
+  // Wire control sliders / selects / checkboxes
+  for (const el of $$('.default-action')) {
+    const num = $(`#${el.id}-val`);
+    const sync = () => { if (num) num.textContent = el.value; };
+    if (el.type === 'range') {
+      el.addEventListener('input', sync);
+      el.addEventListener('change', () => pushControl(el.id, el.value));
+    } else if (el.type === 'checkbox') {
+      el.addEventListener('change', () => pushControl(el.id, el.checked));
+    } else {
+      el.addEventListener('change', () => pushControl(el.id, el.value));
+    }
+  }
+
+  $('#preview-btn').onclick = () => {
+    if (previewing) stopStream(); else startStream();
+  };
+  $('#snapshot-btn').onclick = snapshot;
+  $('#record-btn').onclick = toggleRecord;
+  $('#refresh-btn').onclick = refreshFromScope;
+  $('#scan-btn').onclick    = scanNetwork;
+  $('#add-ip-btn').onclick  = addByIp;
+  $('#add-ip-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addByIp();
+  });
+  $('#save-config-btn').onclick = async () => {
+    if (!currentIp()) { toast('No IP for selected scope.', true); return; }
+    $('#save-config-btn').disabled = true;
+    try {
+      const r = await fetch(`${scopeBase()}/config`, { method: 'POST' });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      toast('Config saved to SD');
+    } catch (e) { toast(`Save failed: ${e.message}`, true); }
+    finally { $('#save-config-btn').disabled = false; }
+  };
+
+  wireAdvanced();
+  sm_wire();
+
+  // One-shot at page load: warm the helper's cache, then render. No
+  // periodic polling — /whoami only fires on explicit user actions
+  // (Refresh, Scan, Add) and /log only while recording.
+  renderScopeCards();
+  renderInfoSection();
+  await refreshFromScope();
+  if (currentIp()) await loadStatus();   // mount controls for the selected scope
+}
+
+boot();
+</script>
+</body>
+</html>
