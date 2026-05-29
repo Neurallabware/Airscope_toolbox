@@ -15,7 +15,11 @@ link, file descriptions, and minimal loading examples.
 
 Download: [Google Drive](https://drive.google.com/drive/u/0/folders/1EPN6YSidfCAPXQBSYq9nOefI76L-_FHE)
 
-The `MCU_timestamp/` directory contains MCU (Microcontroller Unit) timestamp files for frame rate validation across neural recording. The `optical_characteristic/` directory contains USAF 1951 target images, and fluorescent grid slide images. Use `calculate_frame_rate.ipynb` to verify the actual frame rate from the recorded timestamps.
+The `MCU_timestamp/` directory contains MCU (Microcontroller Unit) timestamp files for frame rate validation across neural recording. Use `calculate_frame_rate.ipynb` to verify the actual frame rate from the recorded timestamps.
+
+## Optical characteristic data
+
+The `optical_characteristic/` directory contains USAF 1951 target images, and fluorescent grid slide images.
 
 ## Directory Layout
 
