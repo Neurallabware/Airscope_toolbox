@@ -1,8 +1,8 @@
 # Multi-animal PICO data release
 
-Release data is available in the shared Google Drive folder [here][release-data].
+Release data is available in the public Airscope data release [here][release-data].
 
-[release-data]: https://drive.google.com/drive/folders/1g2-mHKbvAN6hFg_vgefyA6oTYkXPSHUd?dmr=1&ec=wgc-drive-%5Bmodule%5D-goto
+[release-data]: https://drive.google.com/drive/folders/1z9ibX8Ob2NnCdjQDHI7Z4tdhdspn647B?usp=drive_link
 
 ## Quick start
 
@@ -144,4 +144,3 @@ end_frame = data.end_frame;
 calcium_03 = data.calcium_03_new;
 mouse_center_03 = data.mouse_center_03_new;
 ```
-

@@ -1,9 +1,9 @@
 # Supplementary data: `5m2 natural habitat`
 
 
-Release data is available in the shared Google Drive folder [here][release-data].
+Release data is available in the public Airscope data release [here][release-data].
 
-[release-data]: https://drive.google.com/drive/folders/1D88Eob9fqjA0ZMfEhnj5uZ0tEsvXPsJG?dmr=1&ec=wgc-drive-%5Bmodule%5D-goto
+[release-data]: https://drive.google.com/drive/folders/1z9ibX8Ob2NnCdjQDHI7Z4tdhdspn647B?usp=drive_link
 
 
 ------------------------------------------------------------------------
