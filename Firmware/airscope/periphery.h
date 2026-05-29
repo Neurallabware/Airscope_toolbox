@@ -43,6 +43,13 @@ extern bool led_on;
 extern float batt_value;
 extern float temp_value;
 
+// Set true at boot when the corresponding I2C device ACKs an address
+// probe. When false, the read paths short-circuit so a board without
+// these chips stops spamming "Error: No data available" and recording
+// still produces a well-formed IMU.txt full of zeros.
+extern bool has_imu;
+extern bool has_mag;
+
 // IMU value
 extern float Accel_X;
 extern float Accel_Y;

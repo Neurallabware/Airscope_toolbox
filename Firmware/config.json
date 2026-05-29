@@ -1,0 +1,9 @@
+{
+  "wifi_ssid": "servicenet",
+  "wifi_password": "",
+  "device_name": "Pokemon",
+  "quality": 4,
+  "agc_gain": 1,
+  "aec_value": 1200,
+  "led_intensity": 0
+}

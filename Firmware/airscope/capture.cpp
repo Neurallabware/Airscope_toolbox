@@ -1,5 +1,7 @@
 #include "capture.h"
 #include "periphery.h"
+#include "config.h"
+#include <WiFi.h>
 
 
 int current_EEP = -1;
@@ -64,6 +66,35 @@ void init_writer(){
     Serial.println("SD Card initialized successfully");
 
     eep_init();
+}
+
+void write_boot_log() {
+    File f = SD_MMC.open("/log.txt", FILE_WRITE);
+    if (!f) {
+        Serial.println("Failed to open /log.txt for boot log");
+        return;
+    }
+
+    uint8_t mac[6];
+    WiFi.macAddress(mac);
+    char mac_str[18];
+    snprintf(mac_str, sizeof(mac_str), "%02X:%02X:%02X:%02X:%02X:%02X",
+             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+    f.printf("MAC: %s\n", mac_str);
+    f.printf("DeviceName: %s\n", g_config.device_name.c_str());
+    f.printf("WiFiSSID: %s\n", g_config.wifi_ssid.c_str());
+    f.printf("ChipRev: %d\n", ESP.getChipRevision());
+    f.printf("ChipCores: %d\n", ESP.getChipCores());
+    f.printf("SDKVersion: %s\n", ESP.getSdkVersion());
+    f.printf("FlashSize: %u\n", ESP.getFlashChipSize());
+    f.printf("PsramSize: %u\n", ESP.getPsramSize());
+    f.printf("SketchMD5: %s\n", ESP.getSketchMD5().c_str());
+    f.printf("BootMillis: %lu\n", millis());
+    f.flush();
+    f.close();
+
+    Serial.printf("Boot log written to /log.txt (MAC %s)\n", mac_str);
 }
 
 // -------------------------- Frame writing : to file, with buffer  --------------------------- /
@@ -294,9 +325,10 @@ void write_IMU_value(File &file) {
 
 
 char udpPacketBuffer[128];
-unsigned long udpEchoTime; 
+unsigned long udpEchoTime;
 WiFiUDP udp;
-char udpServerIp[64] = "192.168.31.208"; // this should be take out from here.
+char udpServerIp[64] = "192.168.31.208"; // idle default; overwritten by GET /udpip from the host
+char record_parent_name[64] = "rec";     // overwritten by GET /recordname?name=...
 
 void udp_sync() {
   // Clear UDP packet buffer
@@ -345,19 +377,23 @@ void udp_sync() {
 
 
 void create_record_files() {
-    // this create 1) a data.dat file for video, 2) log.txt for other logging
-    // TODO we do the IMU and MAG data here
+    // Creates the recording's folder + the data.dat / log.txt / IMU.txt files
+    // inside it. Folder path is /<record_parent_name>/<udp_timestamp>/.
     udp_sync();
 
-    if (!create_nested_directories(udpPacketBuffer)) {
+    char folder_path[192];
+    snprintf(folder_path, sizeof(folder_path), "/%s%s",
+             record_parent_name, udpPacketBuffer);
+
+    if (!create_nested_directories(folder_path)) {
         Serial.print("Failed to create nested directories: ");
-        Serial.println(udpPacketBuffer);
+        Serial.println(folder_path);
         return;
     }
 
     // Create data file
-    char datafile_path[128];
-    snprintf(datafile_path, sizeof(datafile_path), "%s/data.dat", udpPacketBuffer);
+    char datafile_path[256];
+    snprintf(datafile_path, sizeof(datafile_path), "%s/data.dat", folder_path);
     datafile = SD_MMC.open(datafile_path, FILE_WRITE);
     if (!datafile) {
         Serial.println("Failed to open data file for writing");
@@ -365,8 +401,8 @@ void create_record_files() {
     }
 
     // Create log file
-    char logfile_path[128];
-    snprintf(logfile_path, sizeof(logfile_path), "%s/log.txt", udpPacketBuffer);
+    char logfile_path[256];
+    snprintf(logfile_path, sizeof(logfile_path), "%s/log.txt", folder_path);
     logfile = SD_MMC.open(logfile_path, FILE_WRITE);
     if (!logfile) {
         Serial.println("Failed to open log file for writing");
@@ -374,8 +410,8 @@ void create_record_files() {
     }
 
     // Create IMU file
-    char IMUfile_path[128];
-    snprintf(IMUfile_path, sizeof(IMUfile_path), "%s/IMU.txt", udpPacketBuffer);
+    char IMUfile_path[256];
+    snprintf(IMUfile_path, sizeof(IMUfile_path), "%s/IMU.txt", folder_path);
     IMUfile = SD_MMC.open(IMUfile_path, FILE_WRITE);
     if (!IMUfile) {
         Serial.println("Failed to open IMU file for writing");

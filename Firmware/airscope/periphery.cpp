@@ -5,6 +5,10 @@ bool led_on = false;
 float batt_value = 0;
 float temp_value = 0;
 
+// Updated in configIMU() / configMAG() based on whether the chip ACKs.
+bool has_imu = false;
+bool has_mag = false;
+
 float Accel_X = 0;
 float Accel_Y = 0;
 float Accel_Z = 0;
@@ -24,17 +28,22 @@ void update_tb(){
 }
 
 void update_IMU_MAG(){
-  Accel_X = readFloatAccelX(); // get accel x
-  Accel_Y = readFloatAccelY(); // get accel y
-  Accel_Z = readFloatAccelZ(); // get accel z
-
-  Gyro_X = readFloatGyroX(); // get gyro x
-  Gyro_Y = readFloatGyroY(); // get gyro x
-  Gyro_Z = readFloatGyroZ(); // get gyro x
-
-  magX = readMagData_X(); // MAG x
-  magY = readMagData_Y();
-  magZ = readMagData_Z();
+  // If the chip isn't on the bus, leave the globals at their previous
+  // value (init 0). Skipping the reads avoids the per-frame I2C traffic
+  // and the "Error: No data available" spam.
+  if (has_imu) {
+    Accel_X = readFloatAccelX();
+    Accel_Y = readFloatAccelY();
+    Accel_Z = readFloatAccelZ();
+    Gyro_X  = readFloatGyroX();
+    Gyro_Y  = readFloatGyroY();
+    Gyro_Z  = readFloatGyroZ();
+  }
+  if (has_mag) {
+    magX = readMagData_X();
+    magY = readMagData_Y();
+    magZ = readMagData_Z();
+  }
 }
 
 void get_initial_batt_value(){
@@ -93,20 +102,33 @@ float readTempValue() {
   if (Wire.available() == 2) {
     byte msb = Wire.read();
     byte lsb = Wire.read();
-    int16_t rawTemperature = (msb << 8) | lsb;
-    int16_t sign = rawTemperature >> 15;
-    rawTemperature = rawTemperature << 1;
-    rawTemperature = rawTemperature >> 5;
-    if (sign == 1) {rawTemperature = -rawTemperature;}
-    return rawTemperature * 0.0625;
+    // TMP102: 12-bit two's-complement value, left-justified in a 16-bit
+    // register (top 12 bits = T, bottom 4 = 0). The previous code did
+    // `(raw << 1) >> 5` which discards the sign bit and then shoves
+    // bit 14 *into* the sign slot — so any temp >=64C (bit 14 set)
+    // came out as a large negative number.
+    int16_t raw = (int16_t)((msb << 8) | lsb);
+    int16_t t12 = raw >> 4;   // arithmetic shift sign-extends 12->16 bit
+    return t12 * 0.0625f;
   }
   return 0.0; // Return 0 if temperature reading fails
 }
 
 // -------------------- IMU ------------------------- //
-void configIMU() { // this is slightly different from the temperature implementation
+void configIMU() {
+    // Probe the bus first. Wire.endTransmission() returns 0 only when the
+    // slave actually ACKs; on this PICO_11 board IMU/MAG are optional, so
+    // a missing chip should leave the firmware otherwise functional.
+    Wire.beginTransmission(LSM6DSL_ADDR);
+    if (Wire.endTransmission() != 0) {
+        has_imu = false;
+        Serial.println("[imu] LSM6DSL @ 0x6A not detected -- accel/gyro will be 0");
+        return;
+    }
+    has_imu = true;
     writeRegister_IMU(CTRL1_XL, 0x60); // ODR = 1.66 kHz, 2g full scale, 400 Hz filter
-    writeRegister_IMU(CTRL2_G, 0x60); // ODR = 1.66 kHz, 2000 dps
+    writeRegister_IMU(CTRL2_G,  0x60); // ODR = 1.66 kHz, 2000 dps
+    Serial.println("[imu] LSM6DSL detected");
 }
 
 void writeRegister_IMU(uint8_t reg, uint8_t value) {
@@ -193,25 +215,23 @@ float convertGyro(int16_t axisValue) {
 // -------------------- MAG ------------------------- //
 
 void configMAG() {
-    // Set the sign for X, Y, and Z axis
+    // Same address-probe pattern as configIMU.
+    Wire.beginTransmission(QMC6310_ADDR);
+    if (Wire.endTransmission() != 0) {
+        has_mag = false;
+        Serial.println("[mag] QMC6310 @ 0x1C not detected -- mag will be 0");
+        return;
+    }
+    has_mag = true;
     writeRegister_MAG(QMC6310_REG_AXIS_SIGN, 0x06);
+    writeRegister_MAG(QMC6310_REG_RESET,     0x08);   // 8 Gauss FS
+    writeRegister_MAG(QMC6310_REG_CONTROL2,  0xCD);   // normal, ODR=200 Hz
 
-    // Set/reset mode, field range 8 Gauss
-    writeRegister_MAG(QMC6310_REG_RESET, 0x08);
-
-    // Set normal mode, ODR=200Hz
-    writeRegister_MAG(QMC6310_REG_CONTROL2, 0xCD);
-    
-    // Print the control registers to confirm they were written correctly
     uint8_t control1 = readRegister_MAG(QMC6310_REG_CONTROL1);
     uint8_t control2 = readRegister_MAG(QMC6310_REG_CONTROL2);
     uint8_t axisSign = readRegister_MAG(QMC6310_REG_AXIS_SIGN);
-    Serial.print("Control Register 1: "); //TODO better print to log file
-    Serial.println(control1, HEX);
-    Serial.print("Control Register 2: ");
-    Serial.println(control2, HEX);
-    Serial.print("Axis Sign Register: ");
-    Serial.println(axisSign, HEX);
+    Serial.printf("[mag] QMC6310 detected: ctrl1=0x%02X ctrl2=0x%02X axis=0x%02X\n",
+                  control1, control2, axisSign);
 }
 
 float readMagData_X() {
@@ -234,6 +254,11 @@ void writeRegister_MAG(uint8_t reg, uint8_t value) {
 }
 
 uint8_t readRegister_MAG(uint8_t reg) {
+    // Bypass the bus entirely when the device isn't present, so the
+    // recording loop's per-frame mag reads don't print 6 lines of
+    // "Error: No data available" per frame.
+    if (!has_mag) return 0;
+
     Wire.beginTransmission(QMC6310_ADDR);
     Wire.write(reg);
     Wire.endTransmission();

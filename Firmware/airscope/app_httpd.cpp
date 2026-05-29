@@ -16,6 +16,7 @@
 
 #include "periphery.h"
 #include "capture.h"
+#include "config.h"
 #include "esp_http_server.h"
 #include "esp_timer.h"
 #include "esp_camera.h"
@@ -35,6 +36,8 @@
 #include <esp_http_server.h>
 #include "time.h"
 #include <Ticker.h>
+#include <WiFi.h>
+#include <ArduinoJson.h>
 
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_ARDUHAL_ESP_LOG)
 #include "esp32-hal-log.h"
@@ -65,18 +68,47 @@ unsigned long capture_start_tm = 0;
 
 Ticker ticker;
 
+// Shared helper so /capture (legacy toggle) and /record/start, /record/stop
+// (explicit verbs) all converge on the same state machine.
+static void _do_record_start() {
+    if (!recording_on) {
+        Serial.println("WEBSERVER: Start Capturing..");
+        recording_on = true;
+        capture_start_tm = millis();
+    }
+}
+
+static void _do_record_stop() {
+    if (recording_on) {
+        recording_on = false;
+        Serial.println("WEBSERVER: Capturing stopped by user.");
+    }
+}
+
+// Legacy /capture toggle — kept for back-compat. Prefer /record/start and
+// /record/stop from new clients.
 static esp_err_t capture_handler(httpd_req_t *req)
 {
-   if (recording_on == false) { // here we go from none/stream to record
-     Serial.println("WEBSERVER: Start Capturing..");
-     recording_on = true;
-     capture_start_tm = millis();
-   } else { // here we are already on recording_on mode. We do interruption
-     recording_on = false;
-     Serial.println("WEBSERVER: Capturing stopped by user."); 
-   }
-    return ESP_OK;
-} // end capture_handler
+    if (recording_on == false) {
+        _do_record_start();
+    } else {
+        _do_record_stop();
+    }
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    return httpd_resp_send(req, NULL, 0);
+}
+
+static esp_err_t record_start_handler(httpd_req_t *req) {
+    _do_record_start();
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    return httpd_resp_send(req, NULL, 0);
+}
+
+static esp_err_t record_stop_handler(httpd_req_t *req) {
+    _do_record_stop();
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    return httpd_resp_send(req, NULL, 0);
+}
 
 // this function is called to interrupt the recording. binding with a ticker
 void capturing_checker() {
@@ -640,6 +672,112 @@ static esp_err_t win_handler(httpd_req_t *req)
     return httpd_resp_send(req, NULL, 0);
 }
 
+// GET /whoami - device id + telemetry for host-side LAN discovery.
+// JSON: { device_name, mac, ip, fw, batt, temp, recording, total_frames }
+static esp_err_t whoami_handler(httpd_req_t *req)
+{
+    update_tb();  // refresh batt + temp
+
+    StaticJsonDocument<384> doc;
+    doc["device_name"]  = g_config.device_name;
+    doc["mac"]          = WiFi.macAddress();
+    doc["ip"]           = WiFi.localIP().toString();
+    doc["fw"]           = "airscope_v2";
+    doc["batt"]         = batt_value;
+    doc["temp"]         = temp_value;
+    doc["recording"]    = recording_on;
+    doc["total_frames"] = total_frames;
+
+    char out[384];
+    size_t n = serializeJson(doc, out, sizeof(out));
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    return httpd_resp_send(req, out, n);
+}
+
+// GET /recordname?name=<custom> - set the SD parent folder for the next
+// recording. Final path: /<name>/<udp_timestamp>/. Default: "rec".
+static esp_err_t recordname_handler(httpd_req_t *req)
+{
+    char *buf = NULL;
+    char name[64];
+
+    if (parse_get(req, &buf) != ESP_OK) {
+        return ESP_FAIL;
+    }
+    if (httpd_query_key_value(buf, "name", name, sizeof(name)) != ESP_OK) {
+        free(buf);
+        httpd_resp_send_404(req);
+        return ESP_FAIL;
+    }
+    free(buf);
+
+    // Sanitize: drop slashes and anything weird so the name can't escape the
+    // parent dir. Replace bad chars with '_'.
+    for (char *p = name; *p; ++p) {
+        char c = *p;
+        bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                  (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.';
+        if (!ok) *p = '_';
+    }
+    if (name[0] == '\0') {
+        strcpy(name, "rec");
+    }
+
+    strncpy(record_parent_name, name, sizeof(record_parent_name) - 1);
+    record_parent_name[sizeof(record_parent_name) - 1] = '\0';
+
+    Serial.print("Set record_parent_name: ");
+    Serial.println(record_parent_name);
+
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    return httpd_resp_send(req, record_parent_name, strlen(record_parent_name));
+}
+
+// POST /config - persist current in-memory state (camera sensor + device
+// name + capture_time) back to /config.json on SD. Body is ignored; the
+// scope is the source of truth for what was set via /control.
+static esp_err_t config_save_handler(httpd_req_t *req)
+{
+    // Snapshot live sensor state into g_config so the saved file matches
+    // what the user just tweaked through the UI.
+    sensor_t *s = esp_camera_sensor_get();
+    if (s) {
+        g_config.framesize      = s->status.framesize;
+        g_config.quality        = s->status.quality;
+        g_config.brightness     = s->status.brightness;
+        g_config.contrast       = s->status.contrast;
+        g_config.saturation     = s->status.saturation;
+        g_config.special_effect = s->status.special_effect;
+        g_config.wb_mode        = s->status.wb_mode;
+        g_config.awb            = s->status.awb;
+        g_config.awb_gain       = s->status.awb_gain;
+        g_config.aec            = s->status.aec;
+        g_config.aec2           = s->status.aec2;
+        g_config.ae_level       = s->status.ae_level;
+        g_config.aec_value      = s->status.aec_value;
+        g_config.agc            = s->status.agc;
+        g_config.agc_gain       = s->status.agc_gain;
+        g_config.gainceiling    = s->status.gainceiling;
+        g_config.bpc            = s->status.bpc;
+        g_config.wpc            = s->status.wpc;
+        g_config.raw_gma        = s->status.raw_gma;
+        g_config.lenc           = s->status.lenc;
+        g_config.hmirror        = s->status.hmirror;
+        g_config.vflip          = s->status.vflip;
+        g_config.dcw            = s->status.dcw;
+    }
+    g_config.default_capture_time = capture_time;
+
+    bool ok = config_save_to_sd();
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    if (!ok) {
+        return httpd_resp_send_500(req);
+    }
+    const char *msg = "saved";
+    return httpd_resp_send(req, msg, strlen(msg));
+}
+
 // send the encoded html to the browser
 static esp_err_t index_handler(httpd_req_t *req)
 {
@@ -660,7 +798,7 @@ void startCameraServer() // this is called by .ino
     ticker.attach(0.1, capturing_checker);
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 16;
+    config.max_uri_handlers = 24;   // v1 had 16; v2 adds /whoami, /record/start, /record/stop, /recordname, /config
 
     httpd_uri_t index_uri = {
         .uri = "/",
@@ -831,6 +969,58 @@ void startCameraServer() // this is called by .ino
 #endif
     };
 
+    // ---- v2 additions ----
+    httpd_uri_t whoami_uri = {
+        .uri = "/whoami",
+        .method = HTTP_GET,
+        .handler = whoami_handler,
+        .user_ctx = NULL
+#ifdef CONFIG_HTTPD_WS_SUPPORT
+        , .is_websocket = true, .handle_ws_control_frames = false, .supported_subprotocol = NULL
+#endif
+    };
+
+    httpd_uri_t record_start_uri = {
+        .uri = "/record/start",
+        .method = HTTP_GET,
+        .handler = record_start_handler,
+        .user_ctx = NULL
+#ifdef CONFIG_HTTPD_WS_SUPPORT
+        , .is_websocket = true, .handle_ws_control_frames = false, .supported_subprotocol = NULL
+#endif
+    };
+
+    httpd_uri_t record_stop_uri = {
+        .uri = "/record/stop",
+        .method = HTTP_GET,
+        .handler = record_stop_handler,
+        .user_ctx = NULL
+#ifdef CONFIG_HTTPD_WS_SUPPORT
+        , .is_websocket = true, .handle_ws_control_frames = false, .supported_subprotocol = NULL
+#endif
+    };
+
+    httpd_uri_t recordname_uri = {
+        .uri = "/recordname",
+        .method = HTTP_GET,
+        .handler = recordname_handler,
+        .user_ctx = NULL
+#ifdef CONFIG_HTTPD_WS_SUPPORT
+        , .is_websocket = true, .handle_ws_control_frames = false, .supported_subprotocol = NULL
+#endif
+    };
+
+    httpd_uri_t config_save_uri = {
+        .uri = "/config",
+        .method = HTTP_POST,
+        .handler = config_save_handler,
+        .user_ctx = NULL
+#ifdef CONFIG_HTTPD_WS_SUPPORT
+        , .is_websocket = true, .handle_ws_control_frames = false, .supported_subprotocol = NULL
+#endif
+    };
+    // ---- end v2 additions ----
+
     log_i("Starting web server on port: '%d'", config.server_port);
     if (httpd_start(&camera_httpd, &config) == ESP_OK)
     {
@@ -847,6 +1037,13 @@ void startCameraServer() // this is called by .ino
         httpd_register_uri_handler(camera_httpd, &greg_uri);
         httpd_register_uri_handler(camera_httpd, &pll_uri);
         httpd_register_uri_handler(camera_httpd, &win_uri);
+
+        // v2 endpoints
+        httpd_register_uri_handler(camera_httpd, &whoami_uri);
+        httpd_register_uri_handler(camera_httpd, &record_start_uri);
+        httpd_register_uri_handler(camera_httpd, &record_stop_uri);
+        httpd_register_uri_handler(camera_httpd, &recordname_uri);
+        httpd_register_uri_handler(camera_httpd, &config_save_uri);
     }
 
     config.server_port += 1; // this is the main start 

@@ -24,6 +24,10 @@ bool create_nested_directories(const char *path);
 void write_frame_to_sd(File &file, camera_fb_t *fb);
 void write_frame_to_jpeg(String path, camera_fb_t * fb);
 
+// Writes /log.txt at SD root with MAC + device info. Truncates on each boot
+// so the MAC is always at the top of the file.
+void write_boot_log();
+
 // Time related functions
 extern tm initial_time;
 extern unsigned long initial_mills;
@@ -37,6 +41,11 @@ void ntp_sync(); // init initial_time and initial mills
 void ntp_sync_dummy(); // pretend to initial time (to a fixed time 2000.1.1 12:00, not through WIFI)
 void write_timestamp(); // log timestamp to logfile
 void create_record_files(); // create the folder, datafile and logfile of current recording according to the initial time
+
+// Parent folder for the next recording on SD. SD path becomes
+//   /<record_parent_name>/<udp_timestamp>/data.dat,log.txt,IMU.txt
+// Set via GET /recordname?name=<custom>. Default: "rec".
+extern char record_parent_name[64];
 
 // core record function, wo RTOS
 void record_frames(int seconds); // capture for n seconds
