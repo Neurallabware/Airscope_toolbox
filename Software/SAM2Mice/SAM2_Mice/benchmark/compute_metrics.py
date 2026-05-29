@@ -354,6 +354,7 @@ def compute_mot_metrics(
     """
     # Loader depending on input type
     def load(path):
+        """Load metrics input from a YOLO label folder or an HDF5 file."""
         if os.path.isdir(path):
             return read_yolo_folder(path, yolo_img_shape)
         else:
@@ -488,7 +489,6 @@ if __name__ == "__main__":
 
     plt.subplots_adjust(hspace=0.4, wspace=0.3)
     plt.show()
-
 
 
 

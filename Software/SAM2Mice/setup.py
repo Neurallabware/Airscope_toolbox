@@ -29,13 +29,20 @@ REQUIRED_PACKAGES = [
     "hydra-core>=1.3.2",
     "iopath>=0.1.10",
     "pillow>=9.4.0",
+    "ultralytics>=8.3.228",
+    "supervision>=0.26.1",
+    "labelme>=5.9.1",
+    "labelImg>=1.8.6",
+    "scikit-learn>=1.7.2",
+    "gdown>=5.2.0",
+    "gradio>=6.14.0",
+    "matplotlib>=3.9.1",
+    "opencv-python>=4.7.0",
 ]
 
 EXTRA_PACKAGES = {
     "notebooks": [
-        "matplotlib>=3.9.1",
         "jupyter>=1.0.0",
-        "opencv-python>=4.7.0",
         "eva-decord>=0.6.1",
     ],
     "interactive-demo": [

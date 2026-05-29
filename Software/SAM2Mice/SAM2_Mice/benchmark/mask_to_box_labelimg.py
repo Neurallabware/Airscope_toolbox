@@ -25,6 +25,7 @@ def load_pickle_maybe_gzip(path: str):
 
 
 def ensure_dir(p: Path) -> None:
+    """Create a directory and all parents if needed."""
     p.mkdir(parents=True, exist_ok=True)
 
 
@@ -54,6 +55,7 @@ def mask_to_xyxy_union(mask: np.ndarray, min_area: int = 900) -> List[Tuple[int,
 
 
 def xyxy_to_yolo(x1: int, y1: int, x2: int, y2: int, img_w: int, img_h: int) -> Tuple[float, float, float, float]:
+    """Convert absolute xyxy box coordinates to normalized YOLO cxcywh."""
     w = x2 - x1
     h = y2 - y1
     cx = x1 + w / 2.0
@@ -75,6 +77,7 @@ def write_yolo_labels(label_path: Path, objs: List[Tuple[int, Tuple[int, int, in
 
 
 def write_classes_txt(labels_dir: Path, class_names: List[str]) -> None:
+    """Write YOLO class names to classes.txt."""
     with open(labels_dir / 'classes.txt', 'w') as f:
         for n in class_names:
             f.write(n + '\n')
@@ -126,6 +129,7 @@ def read_yolo_label_file(path: str, img_w: int, img_h: int) -> List[Tuple[int, T
 
 
 def read_voc_xml_file(path: str) -> List[Tuple[str, Tuple[int, int, int, int]]]:
+    """Read Pascal VOC XML boxes as class-name and xyxy tuples."""
     import xml.etree.ElementTree as ET
     if not os.path.exists(path):
         return []
@@ -144,6 +148,7 @@ def read_voc_xml_file(path: str) -> List[Tuple[str, Tuple[int, int, int, int]]]:
 
 
 def generate_colors(n: int) -> List[Tuple[int, int, int]]:
+    """Generate visually distinct BGR colors for drawing labels."""
     colors: List[Tuple[int, int, int]] = []
     for i in range(max(1, n)):
         hue = int(180 * i / max(1, n))
@@ -226,6 +231,7 @@ def visualize(
     fmt: str,
     conf_thr: float = 0.0,
 ) -> None:
+    """Draw YOLO or VOC labels on images and write visualization frames."""
     ensure_dir(Path(out_dir))
 
     # list frames by image files
@@ -281,6 +287,7 @@ def visualize(
 
 
 def build_argparser() -> argparse.ArgumentParser:
+    """Build the command-line parser for conversion and visualization."""
     p = argparse.ArgumentParser(description='Convert packed masks to LabelImg annotations and visualize.')
     sub = p.add_subparsers(dest='cmd', required=True)
 
@@ -305,6 +312,7 @@ def build_argparser() -> argparse.ArgumentParser:
 
 
 def main():
+    """Parse command-line arguments and dispatch the selected subcommand."""
     args = build_argparser().parse_args()
     if args.cmd == 'convert':
         convert_masks(

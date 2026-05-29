@@ -22,10 +22,12 @@ def load_pickle_maybe_gzip(path: str):
 
 
 def ensure_dir(p: Path) -> None:
+    """Create a directory and all parents if needed."""
     p.mkdir(parents=True, exist_ok=True)
 
 
 def load_video_frame_at_index(video_path: str, index: int) -> np.ndarray | None:
+    """Load one frame from a video by zero-based frame index."""
     cap = cv2.VideoCapture(video_path)
     cap.set(cv2.CAP_PROP_POS_FRAMES, int(index))
     ok, frame = cap.read()
@@ -34,6 +36,7 @@ def load_video_frame_at_index(video_path: str, index: int) -> np.ndarray | None:
 
 
 def video_shape(video_path: str) -> Tuple[int, int]:
+    """Return video frame shape as (height, width)."""
     cap = cv2.VideoCapture(video_path)
     ok, frame = cap.read()
     cap.release()
@@ -44,6 +47,7 @@ def video_shape(video_path: str) -> Tuple[int, int]:
 
 
 def video_len(video_path: str) -> int:
+    """Return the frame count reported by OpenCV for a video."""
     cap = cv2.VideoCapture(video_path)
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     cap.release()
@@ -62,6 +66,7 @@ def mask_to_boxes(mask: np.ndarray, min_area: int = 900) -> List[Tuple[int, int,
 
 
 def xyxy_to_yolo(x1: int, y1: int, x2: int, y2: int, img_w: int, img_h: int) -> Tuple[float, float, float, float]:
+    """Convert absolute xyxy box coordinates to normalized YOLO cxcywh."""
     w = x2 - x1
     h = y2 - y1
     cx = x1 + w / 2.0
@@ -70,6 +75,7 @@ def xyxy_to_yolo(x1: int, y1: int, x2: int, y2: int, img_w: int, img_h: int) -> 
 
 
 def write_yolo(label_path: Path, objs: List[Tuple[int, Tuple[int, int, int, int]]], img_w: int, img_h: int) -> None:
+    """Write one YOLO label file from class IDs and xyxy boxes."""
     lines: List[str] = []
     for cid, (x1, y1, x2, y2) in objs:
         cx, cy, w, h = xyxy_to_yolo(x1, y1, x2, y2, img_w, img_h)
@@ -79,12 +85,14 @@ def write_yolo(label_path: Path, objs: List[Tuple[int, Tuple[int, int, int, int]
 
 
 def write_classes(labels_dir: Path, names: Sequence[str]) -> None:
+    """Write class names to a YOLO classes.txt file."""
     with open(labels_dir / 'classes.txt', 'w') as f:
         for n in names:
             f.write(n + "\n")
 
 
 def select_frames_random(n: int, total: int, seed: int | None = None) -> List[int]:
+    """Select sorted random frame indices from a fixed frame count."""
     rng = random.Random(seed)
     n = min(n, total)
     return sorted(rng.sample(range(total), n)) if n > 0 else []
@@ -163,6 +171,7 @@ def convert_masks_to_yolo(
     class_mode: str = 'single',  # 'single' -> class 0 for all, 'object' -> use obj_id
     seed: int | None = None,
 ) -> None:
+    """Export selected video frames and matching packed masks as YOLO data."""
     segments: List[Dict[int, np.ndarray]] = load_pickle_maybe_gzip(pickle_path)
     total_seg = len(segments)
 
@@ -229,6 +238,7 @@ def convert_masks_to_yolo(
 
 
 def build_argparser() -> argparse.ArgumentParser:
+    """Build the command-line parser for mask-to-YOLO conversion."""
     p = argparse.ArgumentParser(description='Convert packed masks to YOLO labels and extract frames.')
     p.add_argument('--video', required=True, help='Path to video file')
     p.add_argument('--pickle', required=True, help='Path to processed_segments pickle (gz or plain)')
@@ -244,6 +254,7 @@ def build_argparser() -> argparse.ArgumentParser:
 
 
 def main():
+    """Parse command-line arguments and run the conversion command."""
     args = build_argparser().parse_args()
     convert_masks_to_yolo(
         video_path=args.video,
@@ -261,4 +272,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

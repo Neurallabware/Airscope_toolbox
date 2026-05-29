@@ -280,6 +280,7 @@ class JSONRawDataset(VOSRawDataset):
             for frame_name in sorted(
                 os.listdir(os.path.join(self.img_folder, video_name))
             )
+            if os.path.splitext(frame_name)[1].lower() == ".jpg"
         ]
 
         frames = [

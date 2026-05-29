@@ -1,13 +1,7 @@
-import gzip
-import pickle
-import numpy as np
-from PIL import Image
-import matplotlib.pyplot as plt
 import os
-from concurrent.futures import ThreadPoolExecutor
+import threading
 from tqdm import tqdm
 import cv2
-import shutil
 from queue import Queue
 
 class VideoFrameExtractor:
@@ -15,6 +9,7 @@ class VideoFrameExtractor:
 
     @staticmethod
     def extract_frames(video_path, output_dir=""):
+        """Extract every frame from a video into sequential JPEG files."""
 
         cap = cv2.VideoCapture(video_path)
 
@@ -138,8 +133,9 @@ class VideoFrameExtractor:
         # Start worker threads
         workers = []
         for _ in range(num_workers):
-            thread = ThreadPoolExecutor(max_workers=1).submit(save_frames, frame_queue, batch_size)
-            workers.append(thread)
+            t = threading.Thread(target=save_frames, args=(frame_queue, batch_size), daemon=True)
+            t.start()
+            workers.append(t)
 
         with tqdm(total=total_frames, desc="Processing frames", unit="frame") as pbar:
             while True:
@@ -166,8 +162,8 @@ class VideoFrameExtractor:
         # Stop all workers
         for _ in range(num_workers):
             frame_queue.put(None)
-        for thread in workers:
-            thread.result()
+        for t in workers:
+            t.join()
 
         cap.release()
         return output_dirs

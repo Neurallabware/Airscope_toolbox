@@ -8,7 +8,7 @@ import random
 
 class CommonUtils:
     @staticmethod
-    def creat_dirs(path):
+    def create_dirs(path):
         """
         Ensure the given path exists. If it does not exist, create it using os.makedirs.
 
@@ -25,7 +25,8 @@ class CommonUtils:
 
     @staticmethod
     def draw_masks_and_box_with_supervision(raw_image_path, mask_path, json_path, output_path):
-        CommonUtils.creat_dirs(output_path)
+        """Draw mask, box, and label overlays with supervision for a frame folder."""
+        CommonUtils.create_dirs(output_path)
         raw_image_name_list = [tmp for tmp in os.listdir(raw_image_path) if tmp.endswith(".jpg") or tmp.endswith(".png")]
         raw_image_name_list.sort()
         for raw_image_name in raw_image_name_list:
@@ -112,7 +113,8 @@ class CommonUtils:
 
     @staticmethod
     def draw_masks_and_box(raw_image_path, mask_path, json_path, output_path):
-        CommonUtils.creat_dirs(output_path)
+        """Draw colored masks and JSON boxes for a frame folder using OpenCV."""
+        CommonUtils.create_dirs(output_path)
         raw_image_name_list = [tmp for tmp in os.listdir(raw_image_path) if tmp.endswith(".jpg") or tmp.endswith(".png")]
         raw_image_name_list.sort()
         for raw_image_name in raw_image_name_list:
@@ -132,7 +134,7 @@ class CommonUtils:
             colored_mask = np.zeros_like(image)
             for uid in unique_ids:
                 colored_mask[mask == uid] = colors[uid]
-            alpha = 0.5  # 调整 alpha 值以改变透明度
+            alpha = 0.5  # Adjust the alpha value to change transparency
             output_image = cv2.addWeighted(image, 1 - alpha, colored_mask, alpha, 0)
 
 

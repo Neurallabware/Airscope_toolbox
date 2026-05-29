@@ -11,3 +11,7 @@ checkpoints/*.pt
 checkpoints_detection/*.pt
 demo/backend/checkpoints/*.pt
 SAM2_Mice/detection/train
+sam2_logs/
+tests/
+.idea/
+.claude/

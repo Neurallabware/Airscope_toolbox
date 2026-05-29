@@ -18,53 +18,185 @@ The training code is organized into the following subfolders:
 
 ## Getting Started
 
-To get started with the training code, we provide a simple example to fine-tune our checkpoints on [MOSE](https://henghuiding.github.io/MOSE/) dataset, which can be extended to your custom datasets.
+The dataset used in SAM2Mice is currently not publicly available. It will be open-sourced after the paper is accepted and published.
+
+We provide fine-tuning configs for the SAM 2.1 models on the Airscope (SAM2Mice) dataset. The available configs are:
+
+| Config | Model | Checkpoint |
+|--------|-------|------------|
+| `configs/sam2.1_training/sam2.1_hiera_b+_Airscope_finetune.yaml` | Hiera Base+ | `checkpoints/sam2.1_hiera_base_plus.pt` |
+| `configs/sam2.1_training/sam2.1_hiera_s_Airscope_finetune.yaml` | Hiera Small | `checkpoints/sam2.1_hiera_small.pt` |
+| `configs/sam2.1_training/sam2.1_hiera_l_Airscope_finetune.yaml` | Hiera Large | `checkpoints/sam2.1_hiera_large.pt` |
 
 #### Requirements:
 - We assume training on A100 GPUs with **80 GB** of memory.
-- Download the MOSE dataset using one of the provided links from [here](https://github.com/henghuiding/MOSE-api?tab=readme-ov-file#download).
+- Download the SAM2Mice training dataset and set the correct paths in the config file.
 
-#### Steps to fine-tune on MOSE:
+#### Steps to fine-tune on Airscope (SAM2Mice) dataset:
 - Install the packages required for training by running `pip install -e ".[dev]"`.
-- Set the paths for MOSE dataset in `configs/sam2.1_training/sam2.1_hiera_b+_MOSE_finetune.yaml`.
+- Set the paths for the dataset in `configs/sam2.1_training/sam2.1_hiera_b+_Airscope_finetune.yaml` (or the `_s_` / `_l_` variants):
     ```yaml
     dataset:
-        # PATHS to Dataset
-        img_folder: null # PATH to MOSE JPEGImages folder
-        gt_folder: null # PATH to MOSE Annotations folder
-        file_list_txt: null # Optional PATH to filelist containing a subset of videos to be used for training
+        img_folder: /path/to/SAM2Mice_training_dataset/JPEGImages
+        gt_folder: /path/to/SAM2Mice_training_dataset/Annotations
+        file_list_txt: /path/to/SAM2Mice_training_dataset/train_list.txt
     ```
-- To fine-tune the base model on MOSE using 8 GPUs, run 
+- To fine-tune using all available GPUs, run:
 
-    ```python
+    ```bash
     python training/train.py \
-        -c configs/sam2.1_training/sam2.1_hiera_b+_MOSE_finetune.yaml \
+        -c configs/sam2.1_training/sam2.1_hiera_b+_Airscope_finetune.yaml \
         --use-cluster 0 \
         --num-gpus 8
     ```
 
-    We also support multi-node training on a cluster using [SLURM](https://slurm.schedmd.com/documentation.html), for example, you can train on 2 nodes by running
+- To specify which GPUs to use, set `CUDA_VISIBLE_DEVICES` before the command:
 
-    ```python
+    ```bash
+    # Use GPUs 0 and 1 only
+    CUDA_VISIBLE_DEVICES=0,1 python training/train.py \
+        -c configs/sam2.1_training/sam2.1_hiera_b+_Airscope_finetune.yaml \
+        --use-cluster 0 \
+        --num-gpus 2
+
+    # Use a single GPU (GPU 2)
+    CUDA_VISIBLE_DEVICES=2 python training/train.py \
+        -c configs/sam2.1_training/sam2.1_hiera_b+_Airscope_finetune.yaml \
+        --use-cluster 0 \
+        --num-gpus 1
+
+    # Use GPUs 4, 5, 6, 7
+    CUDA_VISIBLE_DEVICES=4,5,6,7 python training/train.py \
+        -c configs/sam2.1_training/sam2.1_hiera_b+_Airscope_finetune.yaml \
+        --use-cluster 0 \
+        --num-gpus 4
+    ```
+
+    Note: `--num-gpus` must match the number of GPUs listed in `CUDA_VISIBLE_DEVICES`.
+
+    We also support multi-node training on a cluster using [SLURM](https://slurm.schedmd.com/documentation.html), for example, training on 2 nodes:
+
+    ```bash
     python training/train.py \
-        -c configs/sam2.1_training/sam2.1_hiera_b+_MOSE_finetune.yaml \
+        -c configs/sam2.1_training/sam2.1_hiera_b+_Airscope_finetune.yaml \
         --use-cluster 1 \
         --num-gpus 8 \
-        --num-nodes 2
+        --num-nodes 2 \
         --partition $PARTITION \
         --qos $QOS \
         --account $ACCOUNT
     ```
     where partition, qos, and account are optional and depend on your SLURM configuration.
-    By default, the checkpoint and logs will be saved under `sam2_logs` directory in the root of the repo. Alternatively, you can set the experiment log directory in the config file as follows:
-  
+
+    By default, checkpoints and logs are saved under `sam2_logs/` in the repo root. You can override this in the config:
+
     ```yaml
-      experiment_log_dir: null # Path to log directory, defaults to ./sam2_logs/${config_name}
+    launcher:
+      experiment_log_dir: /path/to/your/log/dir  # defaults to ./sam2_logs/${config_name}
     ```
-    The training losses can be monitored using `tensorboard` logs stored under `tensorboard/` in the experiment log directory. We also provide a sample validation [split]( ../training/assets/MOSE_sample_val_list.txt) for evaluation purposes. To generate predictions, follow this [guide](../tools/README.md) on how to use our `vos_inference.py` script. After generating the predictions, you can run the `sav_evaluator.py` as detailed [here](../sav_dataset/README.md#sa-v-val-and-test-evaluation). The expected MOSE J&F after fine-tuning the Base plus model is 79.4.
-    
-    
-    After training/fine-tuning, you can then use the new checkpoint (saved in `checkpoints/` in the experiment log directory) similar to SAM 2 released checkpoints (as illustrated [here](../README.md#image-prediction)).
+
+    Training losses can be monitored via `tensorboard` logs stored under `tensorboard/` in the experiment log directory.
+
+    After training/fine-tuning, the new checkpoint (saved in `checkpoints/` in the experiment log directory) can be used as a drop-in replacement for SAM 2.1 released checkpoints.
+
+## SAM2Mice Dataset Preparation
+
+### Data Annotation Pipeline
+
+In the first step, we acquire a dataset encompassing a broad range of experimental conditions, including standard home cages, naturalistic habitats, light conditions, and dark conditions. Next, we apply SAM2 in batch mode to generate semantic masks. We then identify failure cases such as identity loss and label mixing. A human annotator corrects these errors, and an independent reviewer verifies the accuracy, quality, and completeness of the masks. We iterate this pipeline three to five times to improve coverage.
+
+![Data annotation](../assets/data_annotation.png)
+
+### LabelMe Dataset Format
+
+We use [LabelMe](https://github.com/wkentaro/labelme) for mouse mask annotation. Each frame is paired with a corresponding `.json` annotation file:
+
+An example annotated dataset can be downloaded from [Google Drive](https://drive.google.com/file/d/1jCTJk6LRsQnCCKe7qJGZnsDLCochzUym/view?usp=drive_link). The original full SAM2Mice dataset will be open-sourced in the future.
+
+For an advanced VOS inference example, see [`notebooks_SAM2-MICE/05_vos_inference_advanced.ipynb`](../notebooks_SAM2-MICE/05_vos_inference_advanced.ipynb).
+
+<details>
+<summary>Raw LabelMe dataset directory</summary>
+
+```text
+Root folder
+├── <video_name_1>
+│   ├── 00000.png
+│   ├── 00000.json
+│   ├── 00001.png
+│   ├── 00001.json
+│   └── ...
+├── <video_name_2>
+│   ├── 00000.png
+│   ├── 00000.json
+│   ├── 00001.png
+│   ├── 00001.json
+│   └── ...
+└── ...
+```
+
+</details>
+
+Convert the raw LabelMe annotations into the [MOSE](https://github.com/henghuiding/MOSE-api) dataset format:
+
+```bash
+cd training/dataset_pre
+python labelme_to_training_format.py --json_dir <data_dir> --output_dir <output_dir>
+```
+
+The converted dataset should contain:
+
+<details>
+<summary>Converted MOSE-style dataset directory</summary>
+
+```text
+<output_dir>
+├── Annotations
+│   ├── <video_name_1>
+│   │   ├── 00000.png
+│   │   ├── 00001.png
+│   │   └── ...
+│   └── ...
+└── JPEGImages
+    ├── <video_name_1>
+    │   ├── 00000.jpg
+    │   ├── 00001.jpg
+    │   └── ...
+    └── ...
+```
+
+</details>
+
+Example dataset:
+
+<p align="center">
+  <img src="../assets/dataset.png" width="70%" alt="Dataset">
+</p>
+
+## YOLOv11 Detector Training
+
+We convert SAM2Mice masks to bounding boxes to train a YOLO detector for initial prompt generation. The bounding box data for YOLO can be downloaded from [Google Drive](https://drive.google.com/drive/folders/1aLM1k9hvZOTvQtgVzJ2K1oiGWzQ9MZNx?dmr=1&ec=wgc-drive-globalnav-goto).
+
+Convert packed SAM2Mice mask data to YOLO-format training data:
+
+```bash
+python SAM2_Mice/detection/train/mask_to_box.py \
+    --video /path/to/video.mp4 \
+    --pickle /path/to/processed_segments.pkl.gz \
+    --images-out ./dataset/images \
+    --labels-out ./dataset/labels \
+    --mode random \
+    --num-frames 200 \
+    --class-mode single \
+    --seed 42
+```
+
+Then edit the dataset paths in [`SAM2_Mice/detection/train/cfg/Airscope_five_mouse.yaml`](../SAM2_Mice/detection/train/cfg/Airscope_five_mouse.yaml) and run:
+
+```bash
+python SAM2_Mice/detection/train/train_detection.py
+```
+
 ## Training on images and videos
 The code supports training on images and videos (similar to how SAM 2 is trained). We provide classes for loading SA-1B as a sample image dataset, SA-V as a sample video dataset, as well as any DAVIS-style video dataset (e.g. MOSE). Note that to train on SA-V, you must first extract all videos to JPEG frames using the provided extraction [script](./scripts/sav_frame_extraction_submitit.py). Below is an example of how to setup the datasets in your config to train on a mix of image and video datasets:
 
