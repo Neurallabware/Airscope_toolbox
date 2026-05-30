@@ -3,7 +3,9 @@
 We proposed a deep learning framework for analyzing calcium imaging data from dual-mouse behavioral experiments using two-stream neural architectures.  Neural recordings were tokenized in time, treating each time point as a token. The sequence from each animal, without rank labels, was passed to a dedicated transformer encoder to produce an embedded representation of that animal’s activity.This repository implements multiple model architectures including Uni-stream BERT and Dual-stream-BERT predicting the tubetest outcome (win/lose) from neural calcium signals.
 
 
-![tube test](assets/tube-test.png)
+<div align="center">
+  <img src="assets/tube-test.png" width="50%" alt="tube test">
+</div>
 
 
 ## Model Architectures
@@ -13,14 +15,18 @@ Calcium imaging sequences are high‑dimensional and socially contextual. Classi
 
 ---
 ### 1. Neuron‑BERT (Single Stream)
-![BERT Architecture](assets/bert.png)
+<div align="center">
+  <img src="assets/bert.png" width="50%" alt="BERT Architecture">
+</div>
 Adapts a BERT encoder to neural calcium sequences with:
 - Learned positional embeddings
 - Bert-liks segment embeddings to separete the two mice
 - CLS token–style representation aggregation (classification head on first token)
 
 ### 2. Dual‑Stream BERT
-![Two-Stream Architecture](assets/two_stream.png)
+<div align="center">
+  <img src="assets/two_stream.png" width="70%" alt="Two-Stream Architecture">
+</div>
 Two independent temporal Transformer encoders (one per mouse) followed by a fusion head.
 
 

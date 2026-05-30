@@ -6,6 +6,10 @@ link, file descriptions, and minimal loading examples.
 
 Public data release: [Google Drive](https://drive.google.com/drive/folders/1z9ibX8Ob2NnCdjQDHI7Z4tdhdspn647B?usp=drive_link)
 
+Google Drive root README template:
+[`README_google_drive.md`](README_google_drive.md). Upload this file to the
+Drive root as `README_google_drive.md` when updating the public data folder.
+
 ## Experiments
 
 | Dataset | Local directory | Description |
