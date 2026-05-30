@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environments
+.env
+.venv/
+venv/
+env/
+*.egg-info/
+build/
+dist/
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# JavaScript dependencies and build outputs
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Generated analysis outputs
+outputs/
+runs/
+cache/
+logs/
+*.log
+
+# Model checkpoints and downloaded weights
+ckpt/
+checkpoint/
+checkpoints/
+checkpoints_detection/
+*.ckpt
+*.pt
+*.pth
+*.onnx
+
+# Large local data products
+*.zarr/
+*.h5
+*.hdf5
+*.nwb
+*.avi
+*.mp4
+*.mov
+
+# Airscope host runtime state
+DAQ_software/airscope_pybackend/scopes_registry.json

@@ -1,0 +1,81 @@
+cff-version: 1.2.0
+message: "If you use Airscope hardware files, software, or released data, please cite the associated manuscript."
+title: "Airscope: a 1-gram wireless mesoscope for cortex-wide, single-cell-resolution imaging during unrestricted behaviour"
+type: software
+authors:
+  - family-names: Zhang
+    given-names: Yuanlong
+  - family-names: Li
+    given-names: Angran
+  - family-names: Yuan
+    given-names: Lekang
+  - family-names: Wang
+    given-names: Mingrui
+  - family-names: Zhao
+    given-names: Weihao
+  - family-names: Wang
+    given-names: Zhenbo
+  - family-names: Zang
+    given-names: Boyang
+  - family-names: Zhou
+    given-names: Yangxuan
+  - family-names: Yu
+    given-names: Tao
+  - family-names: Gao
+    given-names: Lin
+  - family-names: Wu
+    given-names: Yu
+  - family-names: Zhu
+    given-names: Rongkang
+  - family-names: Tian
+    given-names: Mengyi
+  - family-names: Li
+    given-names: Kun
+  - family-names: Wu
+    given-names: Jiamin
+  - family-names: Dai
+    given-names: Pu
+  - family-names: Dai
+    given-names: Qionghai
+license: "NOASSERTION"
+preferred-citation:
+  type: article
+  title: "Deciphering cortex-wide neural dynamics of naturally behaving mice by a 1-gram wireless mesoscope"
+  authors:
+    - family-names: Zhang
+      given-names: Yuanlong
+    - family-names: Li
+      given-names: Angran
+    - family-names: Yuan
+      given-names: Lekang
+    - family-names: Wang
+      given-names: Mingrui
+    - family-names: Zhao
+      given-names: Weihao
+    - family-names: Wang
+      given-names: Zhenbo
+    - family-names: Zang
+      given-names: Boyang
+    - family-names: Zhou
+      given-names: Yangxuan
+    - family-names: Yu
+      given-names: Tao
+    - family-names: Gao
+      given-names: Lin
+    - family-names: Wu
+      given-names: Yu
+    - family-names: Zhu
+      given-names: Rongkang
+    - family-names: Tian
+      given-names: Mengyi
+    - family-names: Li
+      given-names: Kun
+    - family-names: Wu
+      given-names: Jiamin
+    - family-names: Dai
+      given-names: Pu
+    - family-names: Dai
+      given-names: Qionghai
+  journal: Nature
+  year: 2025
+  notes: "Manuscript in preparation"

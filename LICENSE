@@ -1,0 +1,74 @@
+Airscope is distributed as a multi-license repository.
+
+Unless a file or subdirectory states otherwise, the following licenses apply:
+
+1. Hardware design files
+
+   Directories:
+   - Structure/
+   - Electronics/
+   - Zemax/
+
+   License:
+   - CERN Open Hardware Licence Version 2 - Strongly Reciprocal
+   - SPDX-License-Identifier: CERN-OHL-S-2.0
+   - Full text: LICENSES/CERN-OHL-S-2.0.txt
+
+2. Original software written for Airscope
+
+   Directories:
+   - DAQ_software/
+   - Firmware/
+   - Software/Neuron_BERT/
+
+   License:
+   - Apache License 2.0
+   - SPDX-License-Identifier: Apache-2.0
+   - Full text: LICENSES/Apache-2.0.txt
+
+3. Airscope calcium-imaging processing software
+
+   Directory:
+   - Software/Airscope_ca_processing/
+
+   License:
+   - GNU General Public License v2.0 only
+   - SPDX-License-Identifier: GPL-2.0-only
+   - Full text: Software/Airscope_ca_processing/LICENSE and
+     LICENSES/GPL-2.0-only.txt
+
+   This module includes or adapts code from third-party scientific-imaging
+   projects. See Software/Airscope_ca_processing/THIRD_PARTY_NOTICES.md.
+
+4. SAM2Mice software
+
+   Directory:
+   - Software/SAM2Mice/
+
+   License:
+   - Apache License 2.0
+   - SPDX-License-Identifier: Apache-2.0
+   - Full text: Software/SAM2Mice/LICENSE and LICENSES/Apache-2.0.txt
+
+   Additional third-party notices and licenses in that directory remain in
+   effect.
+
+5. Documentation, figures, notebooks, and released data
+
+   Paths:
+   - README.md
+   - Data_release/
+   - assets/
+   - documentation and tutorial materials, unless otherwise noted
+
+   License:
+   - Creative Commons Attribution 4.0 International
+   - SPDX-License-Identifier: CC-BY-4.0
+   - Full text: LICENSES/CC-BY-4.0.txt
+
+If a file contains its own license notice, that notice takes precedence for
+that file. If a subdirectory contains its own LICENSE, NOTICE, CITATION, or
+third-party notice files, those files remain authoritative for that subdirectory.
+
+The Airscope name and associated manuscript title are used for attribution and
+identification. This license file does not grant trademark rights.

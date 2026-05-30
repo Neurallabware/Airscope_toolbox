@@ -75,3 +75,9 @@ Main release files:
 See [`experiments/muiti_animal_interaction/README.md`](experiments/muiti_animal_interaction/README.md)
 for detailed variable descriptions, mask unpacking, and loading examples.
 
+## License
+
+Unless otherwise noted, released data, dataset documentation, figures, and
+visualization notebooks in this directory are distributed under the Creative
+Commons Attribution 4.0 International License (CC-BY-4.0). See the top-level
+[`LICENSE`](../LICENSE) file for the repository-wide license map.
