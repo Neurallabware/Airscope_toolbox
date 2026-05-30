@@ -43,7 +43,7 @@ setup(
     long_description=README.read_text(encoding="utf-8"),
     long_description_content_type="text/markdown",
     python_requires=">=3.10,<3.11",
-    license="GPL-2.0-only",
+    license="GPL-3.0-only",
     author="Yuanlong Zhang, Angran Li, Lekang Yuan, Mingrui Wang",
     keywords=[
         "calcium imaging",

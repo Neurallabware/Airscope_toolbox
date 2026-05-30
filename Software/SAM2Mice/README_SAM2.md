@@ -195,7 +195,7 @@ We have released the frontend + backend code for the SAM 2 web demo (a locally d
 
 ## License
 
-The SAM 2 model checkpoints, SAM 2 demo code (front-end and back-end), and SAM 2 training code are licensed under [Apache 2.0](./LICENSE), however the [Inter Font](https://github.com/rsms/inter?tab=OFL-1.1-1-ov-file) and [Noto Color Emoji](https://github.com/googlefonts/noto-emoji) used in the SAM 2 demo code are made available under the [SIL Open Font License, version 1.1](https://openfontlicense.org/open-font-license-official-text/).
+The Airscope release of SAM2Mice software is distributed under the GNU General Public License v3.0 only. See [LICENSE](./LICENSE). Third-party assets and dependencies retain their own license terms; for example, the [Inter Font](https://github.com/rsms/inter?tab=OFL-1.1-1-ov-file) and [Noto Color Emoji](https://github.com/googlefonts/noto-emoji) used in the SAM 2 demo code are made available under the [SIL Open Font License, version 1.1](https://openfontlicense.org/open-font-license-official-text/).
 
 ## Contributing
 

@@ -279,3 +279,9 @@ If you find this project helpful for your research, please consider citing the f
       url={https://arxiv.org/abs/2408.00714},
 }
 ```
+
+## License
+
+The Airscope release of SAM2Mice software is distributed under the GNU General
+Public License v3.0 only. See [`LICENSE`](./LICENSE). Third-party components,
+assets, and datasets retain their own license terms where noted.

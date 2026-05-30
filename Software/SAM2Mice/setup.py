@@ -14,7 +14,7 @@ DESCRIPTION = "SAM 2: Segment Anything in Images and Videos"
 URL = "https://github.com/facebookresearch/sam2"
 AUTHOR = "Meta AI"
 AUTHOR_EMAIL = "segment-anything@meta.com"
-LICENSE = "Apache 2.0"
+LICENSE = "GPL-3.0-only"
 
 # Read the contents of README file
 with open("README.md", "r", encoding="utf-8") as f:

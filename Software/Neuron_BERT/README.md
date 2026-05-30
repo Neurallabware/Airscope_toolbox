@@ -159,9 +159,8 @@ If this repository aids your research, please cite:
 ---
 
 ## License
-MIT License (see `LICENSE`).
+GNU General Public License v3.0 only (see `LICENSE`).
 
 ---
-
 
 

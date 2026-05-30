@@ -189,4 +189,4 @@ See `CITATION.cff` for machine-readable citation metadata.
 
 ## License
 
-This repository is released under the GNU General Public License v2.0 only. See `LICENSE`.
+This repository is released under the GNU General Public License v3.0 only. See `LICENSE`.

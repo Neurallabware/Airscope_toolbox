@@ -146,9 +146,7 @@ Airscope is distributed as a multi-licence repository:
 | Material | Licence |
 |----------|---------|
 | Hardware design (`Structure/`, `Electronics/`, `Zemax/`) | CERN-OHL-S-2.0 |
-| Airscope software (`DAQ_software/`, `Firmware/`, `Software/Neuron_BERT/`) | Apache-2.0 |
-| Calcium-processing software (`Software/Airscope_ca_processing/`) | GPL-2.0-only |
-| SAM2Mice (`Software/SAM2Mice/`) | Apache-2.0 |
+| Software (`DAQ_software/`, `Firmware/`, `Software/`) | GPL-3.0-only |
 | Documentation, figures, notebooks, released data | CC-BY-4.0 |
 
 See [`LICENSE`](./LICENSE), [`LICENSES/`](./LICENSES), and [`NOTICE.md`](./NOTICE.md) for the authoritative licence map and third-party notices.

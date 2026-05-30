@@ -14,46 +14,25 @@ Unless a file or subdirectory states otherwise, the following licenses apply:
    - SPDX-License-Identifier: CERN-OHL-S-2.0
    - Full text: LICENSES/CERN-OHL-S-2.0.txt
 
-2. Original software written for Airscope
+2. Software
 
    Directories:
    - DAQ_software/
    - Firmware/
-   - Software/Neuron_BERT/
-
-   License:
-   - Apache License 2.0
-   - SPDX-License-Identifier: Apache-2.0
-   - Full text: LICENSES/Apache-2.0.txt
-
-3. Airscope calcium-imaging processing software
-
-   Directory:
    - Software/Airscope_ca_processing/
-
-   License:
-   - GNU General Public License v2.0 only
-   - SPDX-License-Identifier: GPL-2.0-only
-   - Full text: Software/Airscope_ca_processing/LICENSE and
-     LICENSES/GPL-2.0-only.txt
-
-   This module includes or adapts code from third-party scientific-imaging
-   projects. See Software/Airscope_ca_processing/THIRD_PARTY_NOTICES.md.
-
-4. SAM2Mice software
-
-   Directory:
+   - Software/Neuron_BERT/
    - Software/SAM2Mice/
 
    License:
-   - Apache License 2.0
-   - SPDX-License-Identifier: Apache-2.0
-   - Full text: Software/SAM2Mice/LICENSE and LICENSES/Apache-2.0.txt
+   - GNU General Public License v3.0 only
+   - SPDX-License-Identifier: GPL-3.0-only
+   - Full text: LICENSES/GPL-3.0-only.txt
 
-   Additional third-party notices and licenses in that directory remain in
-   effect.
+   Software modules may include or adapt third-party code. Third-party notices,
+   provenance statements, and dependency licenses remain in effect where
+   applicable. See NOTICE.md and the module-level notice files.
 
-5. Documentation, figures, notebooks, and released data
+3. Documentation, figures, notebooks, and released data
 
    Paths:
    - README.md
