@@ -15,7 +15,7 @@ Drive root as `README_google_drive.md` when updating the public data folder.
 | Dataset | Local directory | Description |
 | --- | --- | --- |
 | Enriched habitat | [`experiments/enriched_habitat`](experiments/enriched_habitat) | Single-animal Airscope recording in a 5 m2 naturalistic habitat with synchronized multi-view behavior videos, detection boxes, and top-down arena-region annotations. |
-| Multi-animal interaction | [`experiments/muiti_animal_interaction`](experiments/muiti_animal_interaction) | Multi-animal Airscope recording with behavior videos, SAM2 instance masks, aligned neural activity, cortical labels, neuron centers, and mouse mask centers. |
+| Multi-animal interaction | [`experiments/multi_animal_interaction`](experiments/multi_animal_interaction) | Multi-animal Airscope recording with behavior videos, SAM2 instance masks, aligned neural activity, cortical labels, neuron centers, and mouse mask centers. |
 
 ## MCU Timestamp
 
@@ -37,7 +37,7 @@ Data_release/
     ├── enriched_habitat/
     │   ├── README.md
     │   └── visualize_data.ipynb
-    └── muiti_animal_interaction/
+    └── multi_animal_interaction/
         ├── README.md
         ├── visualize_data.ipynb
         └── outputs/
@@ -76,7 +76,7 @@ Main release files:
 - `behavior_with_mask.avi`: behavior video with SAM2 instance masks overlaid.
 - `segment_mask.pickle`: packed SAM2 binary masks for each video frame.
 
-See [`experiments/muiti_animal_interaction/README.md`](experiments/muiti_animal_interaction/README.md)
+See [`experiments/multi_animal_interaction/README.md`](experiments/multi_animal_interaction/README.md)
 for detailed variable descriptions, mask unpacking, and loading examples.
 
 ## License
