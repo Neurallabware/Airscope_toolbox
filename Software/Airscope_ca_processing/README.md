@@ -190,3 +190,9 @@ See `CITATION.cff` for machine-readable citation metadata.
 ## License
 
 This repository is released under the GNU General Public License v3.0 only. See `LICENSE`.
+
+## User manual and documentation maintenance
+
+The canonical Airscope manual is maintained in [Airscope_docxs](https://github.com/Neurallabware/Airscope_docxs) and hosted at [Airscope documentation](https://airscope-docxs.readthedocs.io/en/latest/). Keep this package quick start and that manual synchronized when CLI arguments, Hydra defaults, checkpoints, or output fields change.
+
+For single-GPU inference, explicitly select `rmbg=default`; the top-level config currently selects `rmbg=ddp`. In Python, compose Hydra config groups instead of loading only the top-level YAML. Documentation builds are separate from scientific runtime validation.
