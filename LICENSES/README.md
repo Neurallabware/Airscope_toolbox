@@ -5,7 +5,7 @@ This directory contains the license texts referenced by the top-level
 
 | SPDX identifier | Applies to |
 | --- | --- |
-| `CC-BY-NC-SA-4.0` | Airscope hardware design files in `Structure/`, `Electronics/`, and `Zemax/` |
+| `CERN-OHL-S-2.0` | Airscope hardware design files in `Structure/`, `Electronics/`, and `Zemax/` |
 | `GPL-3.0-only` | Airscope software in `DAQ_software/`, `Firmware/`, and `Software/` |
 | `CC-BY-4.0` | Documentation, figures, notebooks, and released data unless otherwise noted |
 | `Apache-2.0` | Third-party Apache-licensed components and file-level notices where retained |

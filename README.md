@@ -145,7 +145,7 @@ Airscope is distributed as a multi-licence repository:
 
 | Material | Licence |
 |----------|---------|
-| Hardware design (`Structure/`, `Electronics/`, `Zemax/`) | CC-BY-NC-SA-4.0 (commercial use by separate agreement) |
+| Hardware design (`Structure/`, `Electronics/`, `Zemax/`) | CERN-OHL-S-2.0 |
 | Software (`DAQ_software/`, `Firmware/`, `Software/`) | GPL-3.0-only |
 | Documentation, figures, notebooks, released data | CC-BY-4.0 |
 

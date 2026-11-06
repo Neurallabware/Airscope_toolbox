@@ -10,13 +10,9 @@ Unless a file or subdirectory states otherwise, the following licenses apply:
    - Zemax/
 
    License:
-   - Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
-   - SPDX-License-Identifier: CC-BY-NC-SA-4.0
-   - Full text: LICENSES/CC-BY-NC-SA-4.0.txt
-
-   Non-commercial use, modification, and redistribution are permitted under
-   the terms above. Commercial use of the hardware designs requires a separate
-   agreement; please contact the authors.
+   - CERN Open Hardware Licence Version 2 - Strongly Reciprocal
+   - SPDX-License-Identifier: CERN-OHL-S-2.0
+   - Full text: LICENSES/CERN-OHL-S-2.0.txt
 
 2. Software
 
